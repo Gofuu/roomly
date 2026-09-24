@@ -275,7 +275,7 @@ bookingsRouter.post('/bookings', async (req, res) => {
 
   publishBookingChange({
     type: 'booking.created', orgId: me.orgId, buildingId: result.buildingId,
-    roomId: input.roomId, bookingId: result.booking.id, actorId: me.userId,
+    roomId: input.roomId, bookingId: result.booking.id, organizerId: me.userId, actorId: me.userId,
   });
   res.status(201).json(result.booking);
 });
@@ -335,7 +335,7 @@ bookingsRouter.patch('/bookings/:id', async (req, res) => {
 
   publishBookingChange({
     type: 'booking.updated', orgId: me.orgId, buildingId: result.buildingId,
-    roomId: result.booking.roomId, bookingId: result.booking.id, actorId: me.userId,
+    roomId: result.booking.roomId, bookingId: result.booking.id, organizerId: result.booking.organizer.id, actorId: me.userId,
   });
   res.json(result.booking);
 });
@@ -355,7 +355,7 @@ bookingsRouter.delete('/bookings/:id', async (req, res) => {
 
   publishBookingChange({
     type: 'booking.cancelled', orgId: me.orgId, buildingId: result.building_id,
-    roomId: result.room_id, bookingId: result.id, actorId: me.userId,
+    roomId: result.room_id, bookingId: result.id, organizerId: result.user_id, actorId: me.userId,
   });
   res.status(204).end();
 });

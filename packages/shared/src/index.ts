@@ -2,3 +2,4 @@
 export * from './auth.js';
 export * from './spaces.js';
 export * from './bookings.js';
+export * from './realtime.js';

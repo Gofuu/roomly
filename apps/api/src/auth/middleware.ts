@@ -18,7 +18,7 @@ export const requireAuth: RequestHandler = async (req, _res, next) => {
   if (!token) return next(unauthorized());
   const claims = await verifyAccessToken(token);
   if (!claims) return next(unauthorized('Access token is invalid or expired'));
-  req.auth = claims;
+  req.auth = { userId: claims.userId, orgId: claims.orgId, role: claims.role };
   next();
 };
 

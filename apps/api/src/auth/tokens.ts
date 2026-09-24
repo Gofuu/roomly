@@ -34,17 +34,17 @@ export function signAccessToken(claims: AccessClaims): Promise<string> {
     .sign(config.auth.jwtSecret);
 }
 
-/** Returns the claims, or null if the token is invalid or expired. */
-export async function verifyAccessToken(token: string): Promise<AccessClaims | null> {
+/** Returns the claims (plus expiry, in epoch seconds), or null if the token is invalid or expired. */
+export async function verifyAccessToken(token: string): Promise<(AccessClaims & { exp: number }) | null> {
   try {
     const { payload } = await jwtVerify(token, config.auth.jwtSecret, {
       issuer: ISSUER,
       audience: AUDIENCE,
       algorithms: ['HS256'],
     });
-    const { sub, org, role } = payload;
+    const { sub, org, role, exp } = payload;
     if (typeof sub !== 'string' || typeof org !== 'string' || (role !== 'admin' && role !== 'employee')) return null;
-    return { userId: sub, orgId: org, role };
+    return { userId: sub, orgId: org, role, exp: exp! };
   } catch (err) {
     if (err instanceof joseErrors.JOSEError) return null;
     throw err;

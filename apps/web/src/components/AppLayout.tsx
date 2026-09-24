@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth, useSession } from '../lib/auth';
+import { RealtimeProvider } from '../lib/realtime';
 import { Logo } from './Logo';
 import { Badge, cx } from './ui';
 
@@ -24,6 +25,7 @@ export function AppLayout() {
   const isAdmin = user.role === 'admin';
 
   return (
+    <RealtimeProvider>
     <div className="min-h-screen bg-slate-50">
       <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-7xl items-center gap-6 px-4 sm:px-6">
@@ -58,5 +60,6 @@ export function AppLayout() {
         <Outlet />
       </main>
     </div>
+    </RealtimeProvider>
   );
 }

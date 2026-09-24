@@ -13,8 +13,8 @@ export interface BookingChangedEvent {
   buildingId: string;
   roomId: string;
   bookingId: string;
-  /** The room the booking was in before a move, so viewers of the old room also refresh. */
-  previousRoomId?: string;
+  /** The booking's organizer, whose "My bookings" view should refresh. */
+  organizerId: string;
   actorId: string;
 }
 

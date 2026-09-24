@@ -10,6 +10,8 @@ import { AMENITY_LABELS } from '@roomly/shared';
 import { useRoomBookings } from '../lib/queries';
 import { isForeignZone, zoneLabel } from '../lib/time';
 import { BookingDialog, type BookingDialogState } from '../components/BookingDialog';
+import { LiveBadge, Viewers } from '../components/LiveIndicators';
+import { useLiveChannel } from '../lib/realtime';
 import { Alert, Badge, Card, PageHeader, Spinner, errorMessage } from '../components/ui';
 
 /** One room's week, in the building's time zone. Drag across free time to book. */
@@ -18,6 +20,7 @@ export function RoomPage() {
   const [range, setRange] = useState<{ from: string; to: string }>({ from: '', to: '' });
   const [dialog, setDialog] = useState<BookingDialogState>(null);
   const q = useRoomBookings(id, range.from, range.to);
+  const viewers = useLiveChannel('room', id);
   const room = q.data?.room;
   const tz = room?.timezone;
 
@@ -41,7 +44,12 @@ export function RoomPage() {
       <PageHeader
         title={room?.name ?? 'Room'}
         description={room ? `${room.buildingName} · ${room.floorName} · ${room.capacity} seats${tz && isForeignZone(tz) ? ` · times in ${zoneLabel(tz)}` : ''}` : undefined}
-        actions={room && !room.isActive ? <Badge tone="amber">Inactive</Badge> : undefined}
+        actions={
+          <div className="flex items-center gap-3">
+            <Viewers viewers={viewers} />
+            {room && !room.isActive ? <Badge tone="amber">Inactive</Badge> : <LiveBadge />}
+          </div>
+        }
       />
       {room && room.amenities.length > 0 && (
         <div className="-mt-3 mb-5 flex flex-wrap gap-1.5">

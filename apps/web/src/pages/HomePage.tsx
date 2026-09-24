@@ -6,6 +6,8 @@ import { useBuildingSchedule, useSpaces } from '../lib/queries';
 import { addDays, fmtLongDate, isForeignZone, todayIn, zoneLabel } from '../lib/time';
 import { BuildingTimeline } from '../components/BuildingTimeline';
 import { BookingDialog, type BookingDialogState } from '../components/BookingDialog';
+import { LiveBadge, Viewers } from '../components/LiveIndicators';
+import { useLiveChannel } from '../lib/realtime';
 import { Alert, Button, Card, EmptyState, Input, PageHeader, Select, Spinner, cx, errorMessage } from '../components/ui';
 
 const SEAT_FILTERS = [0, 2, 4, 8, 12];
@@ -35,6 +37,7 @@ export function HomePage() {
   }, [building?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const schedule = useBuildingSchedule(building?.id, date);
+  const viewers = useLiveChannel('building', building?.id);
   const rooms = useMemo(
     () => (schedule.data?.rooms ?? []).filter(
       (r) => r.capacity >= minSeats && amenities.every((a) => r.amenities.includes(a)),
@@ -62,6 +65,7 @@ export function HomePage() {
       <PageHeader
         title="Book a room"
         description={`Click a free slot to book it. Times are shown in ${building.name}'s local time${isForeignZone(tz) ? ` (${zoneLabel(tz)})` : ''}.`}
+        actions={<div className="flex items-center gap-3"><Viewers viewers={viewers} /><LiveBadge /></div>}
       />
 
       <Card className="mb-4 flex flex-wrap items-center gap-3 px-4 py-3">
