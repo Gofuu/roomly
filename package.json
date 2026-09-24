@@ -13,7 +13,8 @@
     "dev:api": "npm run dev -w @roomly/api",
     "dev:web": "npm run dev -w @roomly/web",
     "test": "vitest run",
-    "typecheck": "tsc -p tsconfig.json && npm run typecheck --workspaces --if-present"
+    "typecheck": "tsc -p tsconfig.json && npm run typecheck --workspaces --if-present",
+    "build": "npm run build -w @roomly/api && npm run build -w @roomly/web"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",

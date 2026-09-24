@@ -43,6 +43,12 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
     res.status(400).json({ error: { code: 'BAD_JSON', message: 'Malformed JSON body' } });
     return;
   }
+  // Other client errors raised by middleware (e.g. body-parser's 413) carry their own status.
+  const status = (err as { status?: unknown; expose?: unknown }).status;
+  if (typeof status === 'number' && status >= 400 && status < 500 && (err as { expose?: unknown }).expose) {
+    res.status(status).json({ error: { code: 'BAD_REQUEST', message: (err as Error).message } });
+    return;
+  }
   // Constraint violations that route handlers did not translate themselves.
   switch (pgErrorCode(err)) {
     case '23P01':

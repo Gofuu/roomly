@@ -47,6 +47,9 @@ export const config = {
     redirectUri: required('GOOGLE_REDIRECT_URI'),
   },
   tokenEncryptionKey: Buffer.from(required('TOKEN_ENCRYPTION_KEY'), 'base64'),
+  rateLimit: {
+    authPerMinute: Number(process.env.RATE_LIMIT_AUTH_PER_MINUTE ?? 20),
+  },
 };
 
 if (config.tokenEncryptionKey.length !== 32) throw new Error('TOKEN_ENCRYPTION_KEY must be 32 bytes, base64-encoded');

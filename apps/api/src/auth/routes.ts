@@ -2,6 +2,7 @@ import { Router, type CookieOptions, type RequestHandler, type Response } from '
 import { acceptInvitationSchema, loginSchema, signupSchema } from '@roomly/shared';
 import { config, isProduction } from '../config.js';
 import { forbidden, unauthorized } from '../http/errors.js';
+import { authRateLimit } from '../http/rate-limit.js';
 import { acceptInvitation, login, logout, previewInvitation, rotateRefreshToken, signup, type IssuedSession } from './service.js';
 
 export const REFRESH_COOKIE = 'roomly_rt';
@@ -32,6 +33,7 @@ const sameOriginOnly: RequestHandler = (req, _res, next) => {
 };
 
 export const authRouter = Router();
+authRouter.use(authRateLimit());
 
 authRouter.post('/signup', async (req, res) => {
   sendSession(res, await signup(signupSchema.parse(req.body)), 201);

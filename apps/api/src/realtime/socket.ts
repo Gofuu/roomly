@@ -12,9 +12,15 @@
  *   the room's channel, the building's channel and the organizer's personal
  *   channel. Payloads are refetch hints; data still comes from the REST API
  *   with that user's permissions applied.
+ * - Scale-out: the Postgres adapter relays every broadcast through LISTEN/NOTIFY,
+ *   so an emit on one API instance reaches sockets connected to any instance.
+ *   (Clients also refetch on every reconnect, so an event missed while a socket
+ *   or a node was starting up can't leave a stale calendar on screen.)
  */
 import type { Server as HttpServer } from 'node:http';
+import pg from 'pg';
 import { Server, type Socket } from 'socket.io';
+import { createAdapter } from '@socket.io/postgres-adapter';
 import type {
   ChannelKind, ClientToServerEvents, PresenceMessage, ServerToClientEvents, SubscribeRequest,
 } from '@roomly/shared';
@@ -51,10 +57,18 @@ async function canSubscribe(auth: AccessClaims, req: SubscribeRequest): Promise<
   });
 }
 
-export function attachRealtime(httpServer: HttpServer) {
+export function attachRealtime(httpServer: HttpServer, opts: { listenToBus?: boolean } = {}) {
+  // A small dedicated pool: the adapter holds one connection open for LISTEN.
+  const adapterPool = new pg.Pool({
+    host: config.db.host, port: config.db.port, database: config.db.database,
+    user: config.db.systemUser, password: config.db.systemPassword, max: 3,
+  });
   const io: AppServer = new Server(httpServer, {
     path: '/socket.io',
     cors: { origin: config.webOrigin, credentials: true },
+    adapter: createAdapter(adapterPool, {
+      errorHandler: (err) => console.error('[socket.io adapter]', err),
+    }),
   });
 
   // --- Handshake authentication ---------------------------------------------
@@ -133,13 +147,15 @@ export function attachRealtime(httpServer: HttpServer) {
         type: e.type, roomId: e.roomId, buildingId: e.buildingId, bookingId: e.bookingId, actorId: e.actorId,
       });
   };
-  bus.on('booking', onBooking);
+  // Each instance relays the events of bookings it handled itself.
+  if (opts.listenToBus !== false) bus.on('booking', onBooking);
 
   return {
     io,
     close: async () => {
       bus.off('booking', onBooking);
       await io.close();
+      await adapterPool.end();
     },
   };
 }

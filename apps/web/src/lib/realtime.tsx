@@ -52,7 +52,11 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
       else setStatus('offline');
     };
 
-    s.on('connect', () => setStatus('live'));
+    s.on('connect', () => {
+      setStatus('live');
+      // Events sent while this socket was down were missed; refetch what's on screen.
+      void qc.invalidateQueries({ queryKey: keys.bookings });
+    });
     s.on('disconnect', (reason) => {
       setStatus('connecting');
       // The server drops sockets whose access token expired; refresh and come back.

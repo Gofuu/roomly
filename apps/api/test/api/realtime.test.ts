@@ -164,6 +164,37 @@ describe('live booking updates', () => {
   });
 });
 
+describe('horizontal scaling', () => {
+  it('delivers an event handled by instance A to a browser connected to instance B', async () => {
+    // Instance B does not hear the in-process bus, so the only way the event can
+    // reach its socket is through the Postgres adapter (LISTEN/NOTIFY).
+    const serverB = createServer(app);
+    const realtimeB = attachRealtime(serverB, { listenToBus: false });
+    await new Promise<void>((r) => serverB.listen(0, r));
+    const urlB = `http://localhost:${(serverB.address() as AddressInfo).port}`;
+    let onB: Client | undefined;
+    try {
+      // The adapter starts LISTENing asynchronously; B has joined the cluster once it has heard from A.
+      for (let i = 0; i < 50 && (await realtimeB.io.of('/').adapter.serverCount()) < 2; i++) {
+        await new Promise((r) => setTimeout(r, 100));
+      }
+      onB = connect(urlB, { auth: { token: colleague.accessToken }, transports: ['websocket'], reconnection: false, forceNew: true });
+      await new Promise<void>((resolve, reject) => { onB!.on('connect', resolve); onB!.on('connect_error', reject); });
+      expect(await subscribe(onB, 'room', roomId)).toEqual({ ok: true });
+
+      const pending = next(onB, 'booking.changed', 3000);
+      const res = await api().post('/api/bookings').set('Authorization', bearer(admin))
+        .send({ roomId, title: 'Cross-instance', start: tomorrowAt(16, 3), end: tomorrowAt(17, 3) });
+      expect(res.status).toBe(201);
+      expect(await pending).toMatchObject({ type: 'booking.created', bookingId: res.body.id });
+    } finally {
+      onB?.disconnect();
+      await realtimeB.close();
+      await new Promise((r) => serverB.close(r));
+    }
+  });
+});
+
 describe('presence', () => {
   it('tells viewers of a room who else is looking at it', async () => {
     // Start from an empty audience: close sockets left over from earlier tests.

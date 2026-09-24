@@ -4,6 +4,7 @@ import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  build: { chunkSizeWarningLimit: 600 }, // main chunk is ~155 kB gzipped; FullCalendar is split out
   server: {
     port: 5173,
     // Proxy API + WebSocket traffic so the browser sees one origin (simple cookies, no CORS in dev).

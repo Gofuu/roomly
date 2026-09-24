@@ -10,7 +10,7 @@ const base = { host: config.db.host, port: config.db.port, database: config.db.d
 
 /** Connects as the low-privilege API role — subject to RLS. */
 export const appPool = new pg.Pool({ ...base, user: config.db.appUser, password: config.db.appPassword, max: 70 });
-/** Connects as the BYPASSRLS role — used here to create fixtures. */
+/** Connects as the privileged cross-tenant role — used here to create fixtures. */
 export const systemPool = new pg.Pool({ ...base, user: config.db.systemUser, password: config.db.systemPassword, max: 5 });
 
 export async function closePools() {

@@ -4,7 +4,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import type { AuthSession } from '@roomly/shared';
 import { config } from './config.js';
-import { withTenant } from './db/index.js';
+import { appPool, withTenant } from './db/index.js';
 import { auth, requireAuth } from './auth/middleware.js';
 import { authRouter } from './auth/routes.js';
 import { invitationsRouter } from './team/invitations.js';
@@ -21,6 +21,16 @@ export function createApp() {
   app.disable('x-powered-by');
   app.set('trust proxy', 1);
   app.use(helmet());
+  if (config.env === 'development') {
+    // Minimal request log for local development.
+    app.use((req, res, next) => {
+      const started = performance.now();
+      res.on('finish', () => {
+        console.info(`${req.method} ${req.originalUrl} ${res.statusCode} ${(performance.now() - started).toFixed(0)}ms`);
+      });
+      next();
+    });
+  }
   // In dev the Vite proxy makes everything same-origin; CORS covers a separately hosted frontend.
   app.use(cors({ origin: config.webOrigin, credentials: true }));
   // Before express.json(): the webhook signature is computed over the raw body.
@@ -31,8 +41,14 @@ export function createApp() {
   const api = express.Router();
   app.use('/api', api);
 
-  api.get('/health', (_req, res) => {
-    res.json({ ok: true });
+  // For the load balancer: healthy only if the database answers.
+  api.get('/health', async (_req, res) => {
+    try {
+      await appPool.query('SELECT 1');
+      res.json({ ok: true });
+    } catch {
+      res.status(503).json({ ok: false });
+    }
   });
 
   api.use('/auth', authRouter);

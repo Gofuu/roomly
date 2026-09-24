@@ -1,3 +1,4 @@
+import { lazy } from 'react';
 import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import { useAuth, useSession } from './lib/auth';
 import { AppLayout } from './components/AppLayout';
@@ -6,12 +7,14 @@ import { LoginPage } from './pages/auth/LoginPage';
 import { SignupPage } from './pages/auth/SignupPage';
 import { AcceptInvitePage } from './pages/auth/AcceptInvitePage';
 import { HomePage } from './pages/HomePage';
-import { SpacesPage } from './pages/admin/SpacesPage';
-import { TeamPage } from './pages/admin/TeamPage';
-import { BillingPage } from './pages/admin/BillingPage';
-import { RoomPage } from './pages/RoomPage';
 import { MyBookingsPage } from './pages/MyBookingsPage';
 import { SettingsPage } from './pages/SettingsPage';
+
+// Code-split: the room calendar pulls in FullCalendar, and admin pages are rarely visited.
+const RoomPage = lazy(() => import('./pages/RoomPage').then((m) => ({ default: m.RoomPage })));
+const SpacesPage = lazy(() => import('./pages/admin/SpacesPage').then((m) => ({ default: m.SpacesPage })));
+const TeamPage = lazy(() => import('./pages/admin/TeamPage').then((m) => ({ default: m.TeamPage })));
+const BillingPage = lazy(() => import('./pages/admin/BillingPage').then((m) => ({ default: m.BillingPage })));
 
 function FullPageSpinner() {
   return <div className="flex min-h-screen items-center justify-center"><Spinner /></div>;

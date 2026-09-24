@@ -85,6 +85,18 @@ describe('composite foreign keys', () => {
   });
 });
 
+describe('database roles', () => {
+  it('neither application role is a superuser or has BYPASSRLS (portable to managed Postgres)', async () => {
+    const { rows } = await appPool.query(
+      "SELECT rolname, rolsuper, rolbypassrls FROM pg_roles WHERE rolname IN ('roomly_app', 'roomly_system') ORDER BY rolname",
+    );
+    expect(rows).toEqual([
+      { rolname: 'roomly_app', rolsuper: false, rolbypassrls: false },
+      { rolname: 'roomly_system', rolsuper: false, rolbypassrls: false },
+    ]);
+  });
+});
+
 describe('privileges of the app role', () => {
   it('has no access to refresh_tokens', async () => {
     const err = await withOrg(a.orgId, (c) => c.query('SELECT * FROM refresh_tokens')).catch((e) => e);

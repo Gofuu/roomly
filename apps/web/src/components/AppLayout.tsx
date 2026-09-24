@@ -1,8 +1,9 @@
+import { Suspense } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth, useSession } from '../lib/auth';
 import { RealtimeProvider } from '../lib/realtime';
 import { Logo } from './Logo';
-import { Badge, cx } from './ui';
+import { Badge, Spinner, cx } from './ui';
 
 function NavItem({ to, children }: { to: string; children: string }) {
   return (
@@ -58,7 +59,9 @@ export function AppLayout() {
         </div>
       </header>
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
-        <Outlet />
+        <Suspense fallback={<Spinner />}>
+          <Outlet />
+        </Suspense>
       </main>
     </div>
     </RealtimeProvider>

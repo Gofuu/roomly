@@ -4,9 +4,11 @@
  *   withTenant(orgId, fn)  — the default. Connects as the low-privilege app role
  *                            and pins the transaction to one org, so Row-Level
  *                            Security filters every query to that tenant.
- *   withSystem(fn)         — BYPASSRLS. Only for code that runs before a tenant is
- *                            known: signup, login, token refresh, invite acceptance,
- *                            webhooks. Every caller is in src/auth or src/billing.
+ *   withSystem(fn)         — the privileged role, allowed across tenants by the
+ *                            system_access policies (migration 007). Only for code
+ *                            that runs before a tenant is known or spans tenants:
+ *                            signup, login, token refresh, invite acceptance,
+ *                            webhooks, the calendar worker.
  */
 import pg from 'pg';
 import { Kysely, PostgresDialect, sql, type Transaction } from 'kysely';
@@ -44,7 +46,7 @@ export function withTenant<T>(orgId: string, fn: (tx: Tx) => Promise<T>): Promis
   );
 }
 
-/** Privileged transaction that bypasses RLS. See the file comment before using it. */
+/** Privileged cross-tenant transaction. See the file comment before using it. */
 export function withSystem<T>(fn: (tx: Tx) => Promise<T>): Promise<T> {
   return retryTransient(() => systemDb.transaction().execute(fn));
 }
