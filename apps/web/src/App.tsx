@@ -11,6 +11,7 @@ import { TeamPage } from './pages/admin/TeamPage';
 import { BillingPage } from './pages/admin/BillingPage';
 import { RoomPage } from './pages/RoomPage';
 import { MyBookingsPage } from './pages/MyBookingsPage';
+import { SettingsPage } from './pages/SettingsPage';
 
 function FullPageSpinner() {
   return <div className="flex min-h-screen items-center justify-center"><Spinner /></div>;
@@ -50,6 +51,7 @@ export function App() {
           <Route index element={<HomePage />} />
           <Route path="/rooms/:id" element={<RoomPage />} />
           <Route path="/bookings" element={<MyBookingsPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
           <Route element={<RequireAdmin />}>
             <Route path="/admin/spaces" element={<SpacesPage />} />
             <Route path="/admin/team" element={<TeamPage />} />

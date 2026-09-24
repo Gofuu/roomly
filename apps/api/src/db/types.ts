@@ -124,6 +124,28 @@ export interface BookingsTable {
   cancelled_at: Timestamp | null;
 }
 
+export interface GoogleConnectionsTable {
+  user_id: string;
+  org_id: string;
+  google_email: string;
+  refresh_token_enc: string;
+  scopes: string;
+  connected_at: TimestampWithDefault;
+}
+
+export interface CalendarSyncOutboxTable {
+  id: Generated<string>; // bigserial; pg returns int8 as a string
+  org_id: string;
+  booking_id: string;
+  user_id: string;
+  action: 'upsert' | 'delete';
+  attempts: Generated<number>;
+  run_after: TimestampWithDefault;
+  last_error: string | null;
+  created_at: CreatedAt;
+  done_at: Timestamp | null;
+}
+
 export interface Database {
   plans: PlansTable;
   organizations: OrganizationsTable;
@@ -136,4 +158,6 @@ export interface Database {
   rooms: RoomsTable;
   bookings: BookingsTable;
   stripe_events: StripeEventsTable;
+  google_connections: GoogleConnectionsTable;
+  calendar_sync_outbox: CalendarSyncOutboxTable;
 }

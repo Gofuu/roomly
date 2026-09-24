@@ -33,6 +33,7 @@ export function AppLayout() {
           <nav className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none]">
             <NavItem to="/">Book a room</NavItem>
             <NavItem to="/bookings">My bookings</NavItem>
+            <NavItem to="/settings">Settings</NavItem>
             {isAdmin && (
               <>
                 <span className="mx-2 h-5 w-px bg-slate-200" />

@@ -41,10 +41,21 @@ export const config = {
       enterprise: process.env.STRIPE_PRICE_ENTERPRISE || null,
     } as Record<string, string | null>,
   },
+  google: {
+    clientId: process.env.GOOGLE_CLIENT_ID || null,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET || null,
+    redirectUri: required('GOOGLE_REDIRECT_URI'),
+  },
+  tokenEncryptionKey: Buffer.from(required('TOKEN_ENCRYPTION_KEY'), 'base64'),
 };
+
+if (config.tokenEncryptionKey.length !== 32) throw new Error('TOKEN_ENCRYPTION_KEY must be 32 bytes, base64-encoded');
 
 export const isProduction = config.env === 'production';
 
 if (isProduction && process.env.JWT_SECRET!.startsWith('dev-only')) {
   throw new Error('Refusing to start in production with the development JWT_SECRET');
+}
+if (isProduction && config.tokenEncryptionKey.toString().startsWith('dev-only')) {
+  throw new Error('Refusing to start in production with the development TOKEN_ENCRYPTION_KEY');
 }

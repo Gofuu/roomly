@@ -13,6 +13,7 @@ import { spacesRouter } from './spaces/routes.js';
 import { bookingsRouter } from './bookings/routes.js';
 import { billingRouter } from './billing/routes.js';
 import { stripeWebhookRouter } from './billing/webhook.js';
+import { googleCallbackRouter, googleRouter } from './integrations/google-routes.js';
 import { errorHandler, notFound, notFoundHandler } from './http/errors.js';
 
 export function createApp() {
@@ -35,6 +36,7 @@ export function createApp() {
   });
 
   api.use('/auth', authRouter);
+  api.use('/integrations/google', googleCallbackRouter); // public: Google redirects the browser here
 
   // Everything below requires a valid access token.
   api.use(requireAuth);
@@ -63,6 +65,7 @@ export function createApp() {
   api.use(spacesRouter);
   api.use(bookingsRouter);
   api.use('/billing', billingRouter);
+  api.use('/integrations/google', googleRouter);
 
   api.use(notFoundHandler);
   app.use(errorHandler);

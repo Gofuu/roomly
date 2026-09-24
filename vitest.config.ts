@@ -14,6 +14,9 @@ export default defineConfig({
       STRIPE_WEBHOOK_SECRET: 'whsec_test_secret',
       STRIPE_PRICE_PRO: 'price_test_pro',
       STRIPE_PRICE_ENTERPRISE: 'price_test_enterprise',
+      // Offline Google: OAuth and Calendar calls go to a stub client.
+      GOOGLE_CLIENT_ID: '',
+      GOOGLE_CLIENT_SECRET: '',
     },
     // Test files share one database and some open many connections at once.
     fileParallelism: false,
