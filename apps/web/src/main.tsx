@@ -1,13 +1,30 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { BrowserRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { AuthProvider } from './lib/auth';
+import { ApiError } from './lib/api';
+import { App } from './App';
 import './index.css';
 
-function App() {
-  return <div className="p-8 text-slate-800">Roomly</div>;
-}
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,
+      // Retrying 4xx responses never helps.
+      retry: (count, err) => !(err instanceof ApiError && err.status < 500) && count < 2,
+    },
+  },
+});
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </BrowserRouter>
+    </QueryClientProvider>
   </StrictMode>,
 );

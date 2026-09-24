@@ -26,4 +26,16 @@ export const config = {
   },
   apiPort: Number(process.env.API_PORT ?? 4000),
   webOrigin: required('WEB_ORIGIN'),
+  auth: {
+    jwtSecret: new TextEncoder().encode(required('JWT_SECRET')),
+    accessTokenTtlSeconds: Number(required('ACCESS_TOKEN_TTL_SECONDS')),
+    refreshTokenTtlDays: Number(required('REFRESH_TOKEN_TTL_DAYS')),
+    inviteTtlDays: Number(required('INVITE_TTL_DAYS')),
+  },
 };
+
+export const isProduction = config.env === 'production';
+
+if (isProduction && process.env.JWT_SECRET!.startsWith('dev-only')) {
+  throw new Error('Refusing to start in production with the development JWT_SECRET');
+}

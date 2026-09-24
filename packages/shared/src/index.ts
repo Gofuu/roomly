@@ -1,2 +1,2 @@
 // Types and Zod schemas shared by the API and the web app.
-export {};
+export * from './auth.js';
