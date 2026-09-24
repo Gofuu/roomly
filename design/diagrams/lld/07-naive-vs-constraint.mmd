@@ -1,0 +1,23 @@
+flowchart LR
+  classDef bad fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
+  classDef good fill:#dcfce7,stroke:#16a34a,color:#14532d
+
+  subgraph NAIVE["❌ Naive: check, then insert (application-level)"]
+    direction TB
+    N1["Tx A: SELECT overlapping → 0 rows"]:::bad
+    N2["Tx B: SELECT overlapping → 0 rows<br/>(A hasn't inserted yet)"]:::bad
+    N3["Tx A: INSERT → COMMIT"]:::bad
+    N4["Tx B: INSERT → COMMIT"]:::bad
+    N5["DOUBLE BOOKED<br/>(test: 10 of 10 requests succeed)"]:::bad
+    N1 --> N2 --> N3 --> N4 --> N5
+  end
+
+  subgraph GOOD["✅ Roomly: insert, let the database decide"]
+    direction TB
+    G1["Tx A: INSERT → constraint OK"]:::good
+    G2["Tx B: INSERT → waits for A"]:::good
+    G3["Tx A: COMMIT"]:::good
+    G4["Tx B: 23P01 → ROLLBACK → HTTP 409"]:::good
+    G5["EXACTLY ONE BOOKING<br/>(test: 1 of 50 succeeds, 49 get 23P01)"]:::good
+    G1 --> G2 --> G3 --> G4 --> G5
+  end

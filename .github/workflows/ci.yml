@@ -7,6 +7,9 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      # mermaid-cli (design diagrams) depends on puppeteer; CI never renders, so skip the Chromium download.
+      PUPPETEER_SKIP_DOWNLOAD: 'true'
     services:
       # Real Postgres: the tests exercise exclusion constraints, RLS and concurrency,
       # which a mock or SQLite could not.

@@ -1,0 +1,43 @@
+flowchart TB
+  classDef edge fill:#e0f2fe,stroke:#0284c7,color:#0c4a6e
+  classDef svc fill:#eef2ff,stroke:#6366f1,color:#1e1b4b
+  classDef db fill:#dcfce7,stroke:#16a34a,color:#14532d
+  classDef ext fill:#fef3c7,stroke:#d97706,color:#78350f
+  classDef sec fill:#fce7f3,stroke:#db2777,color:#831843
+
+  User["Users' browsers"]:::edge
+  CF["Amazon CloudFront<br/>one domain, HTTPS<br/>behaviours by path"]:::edge
+  S3["S3 bucket<br/>apps/web/dist (static SPA)"]:::edge
+
+  subgraph VPC["VPC"]
+    subgraph Public["Public subnets"]
+      ALB["Application Load Balancer<br/>health check: /api/health"]:::svc
+    end
+    subgraph Private["Private subnets"]
+      subgraph ECS["ECS Fargate service (2+ tasks)"]
+        T1["API task 1<br/>server.js"]:::svc
+        T2["API task 2<br/>server.js"]:::svc
+      end
+      MIG["One-off ECS task<br/>migrate.js (per deploy)"]:::svc
+      RDS[("RDS PostgreSQL 17<br/>Multi-AZ, backups")]:::db
+    end
+  end
+
+  SM["Secrets Manager / SSM<br/>JWT_SECRET, TOKEN_ENCRYPTION_KEY,<br/>DB passwords, Stripe, Google"]:::sec
+  ECR["ECR<br/>roomly-api image"]:::sec
+  Stripe["Stripe"]:::ext
+  Google["Google APIs"]:::ext
+
+  User --> CF
+  CF -- "/*" --> S3
+  CF -- "/api/*  /socket.io/*" --> ALB
+  ALB --> T1 & T2
+  T1 & T2 --> RDS
+  MIG --> RDS
+  T1 <-. "LISTEN/NOTIFY via RDS" .-> T2
+  SM -. "env vars" .-> ECS
+  SM -. "env vars" .-> MIG
+  ECR -. "image" .-> ECS
+  ECR -. "image" .-> MIG
+  T1 & T2 --> Stripe & Google
+  Stripe -- "webhook → /api/webhooks/stripe" --> CF

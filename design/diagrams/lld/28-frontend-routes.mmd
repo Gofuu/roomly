@@ -1,0 +1,25 @@
+flowchart TB
+  classDef g fill:#fef3c7,stroke:#d97706,color:#78350f
+  classDef p fill:#e0f2fe,stroke:#0284c7,color:#0c4a6e
+  classDef lazy fill:#f3e8ff,stroke:#9333ea,color:#3b0764
+  classDef prov fill:#eef2ff,stroke:#6366f1,color:#1e1b4b
+
+  M["main.tsx<br/>StrictMode → QueryClientProvider → BrowserRouter → AuthProvider → App"]:::prov
+  M --> APP["App.tsx &lt;Routes&gt;"]:::prov
+
+  APP --> GO["GuestOnly guard<br/>(signed-in → /)"]:::g
+  GO --> LG["/login — LoginPage<br/>(demo account buttons in dev)"]:::p
+  GO --> SU["/signup — SignupPage"]:::p
+  APP --> INV["/invite/:token — AcceptInvitePage<br/>(preview → accept)"]:::p
+
+  APP --> RA["RequireAuth guard<br/>loading → spinner · signed-out → /login (remember from)"]:::g
+  RA --> AL["AppLayout<br/>RealtimeProvider (socket) · header nav · Suspense"]:::prov
+  AL --> HP["/ — HomePage<br/>BuildingTimeline + filters + BookingDialog<br/>useLiveChannel('building')"]:::p
+  AL --> RP["/rooms/:id — RoomPage (lazy)<br/>FullCalendar week (luxon, building tz)<br/>useLiveChannel('room') + Viewers"]:::lazy
+  AL --> MB["/bookings — MyBookingsPage<br/>upcoming / past & cancelled"]:::p
+  AL --> ST["/settings — SettingsPage<br/>profile + Google Calendar connect"]:::p
+  AL --> RAD["RequireAdmin guard (role ≠ admin → /)"]:::g
+  RAD --> SP["/admin/spaces — SpacesPage (lazy)<br/>usage meter, building/floor/room modals"]:::lazy
+  RAD --> TM["/admin/team — TeamPage (lazy)<br/>members, role/deactivate, invite link"]:::lazy
+  RAD --> BL["/admin/billing — BillingPage (lazy)<br/>plan cards, checkout, portal, polling"]:::lazy
+  AL --> FB["* → Navigate('/')"]:::g

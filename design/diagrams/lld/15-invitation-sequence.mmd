@@ -1,0 +1,28 @@
+sequenceDiagram
+  autonumber
+  actor AD as Admin
+  participant API as API
+  participant DB as Postgres
+  actor NU as Invitee
+
+  AD->>API: POST /api/invitations {email, role} (requireAdmin)
+  API->>DB: withTenant: user with this email in MY org? → 409 ALREADY_MEMBER
+  Note right of DB: other orgs are NOT checked here, so admins can't probe which emails exist elsewhere
+  API->>DB: revoke any open invitation for this email (re-invite replaces link)
+  API->>API: token = 32 random bytes (base64url)
+  API->>DB: INSERT invitations (token_hash = sha256(token), expires in 7 days)
+  API-->>AD: 201 {invitation, inviteUrl = WEB_ORIGIN/invite/token}
+  AD-->>NU: shares link (copy button, no email service)
+
+  NU->>API: GET /api/auth/invitations/:token
+  API->>DB: withSystem: open (not accepted, not revoked, not expired) by hash
+  API-->>NU: {email, orgName, role} or 404 INVITATION_INVALID
+  NU->>API: POST /api/auth/invitations/accept {token, name, password}
+  API->>API: argon2id hash (outside the transaction)
+  API->>DB: BEGIN, SELECT invitation ... FOR UPDATE OF i
+  Note right of DB: row lock: accepting one link twice at once can't create two users
+  API->>DB: email registered anywhere? → 409 EMAIL_TAKEN (one org per user)
+  API->>DB: INSERT users (org_id, role from invitation)
+  API->>DB: UPDATE invitations SET accepted_at = now()
+  API->>DB: INSERT refresh_tokens, COMMIT
+  API-->>NU: 201 session + refresh cookie → app home

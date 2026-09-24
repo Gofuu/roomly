@@ -1,0 +1,32 @@
+flowchart TB
+  classDef s fill:#eef2ff,stroke:#6366f1,color:#1e1b4b
+  classDef d fill:#dcfce7,stroke:#16a34a,color:#14532d
+  classDef x fill:#fef3c7,stroke:#d97706,color:#78350f
+
+  V["vitest run (fileParallelism: false)"]:::s
+  GS["globalSetup: ensureServer → setupDatabase(roomly_test, fresh)<br/>env: DB_NAME=roomly_test, Stripe/Google stubs, high rate limit"]:::s
+  V --> GS
+
+  subgraph DBT["test/db — raw SQL as the real roles"]
+    T1["booking-constraint (9)<br/>overlap, back-to-back, other room, cancel frees,<br/>un-cancel blocked, reschedule, range CHECKs"]:::d
+    T2["booking-concurrency (5)<br/>50-way same slot, 60 random, waits-on-commit,<br/>waits-then-succeeds, naive race contrast"]:::d
+    T3["tenancy (11)<br/>fails closed, RLS read/write, WITH CHECK,<br/>composite FKs, role attributes, privileges, no GUC leak"]:::d
+  end
+
+  subgraph APIT["test/api — supertest against createApp() (+ real sockets)"]
+    U1["auth (17)"]:::s
+    U2["spaces (8)"]:::s
+    U3["members (5)"]:::s
+    U4["bookings (14)"]:::s
+    U5["realtime (8)<br/>incl. 2-instance adapter"]:::s
+    U6["billing (13)<br/>locally signed webhooks"]:::x
+    U7["calendar-sync (13)<br/>stub Google client"]:::x
+    U8["hardening (4)"]:::s
+  end
+
+  GS --> DBT
+  GS --> APIT
+  H["helpers: db.ts (appPool / systemPool / withOrg / barrier)<br/>api.ts (signupOrg, addMember, cookies)"]:::s
+  H -.-> DBT & APIT
+  TOTAL["107 tests · same suite runs in GitHub Actions with a postgres:17 service"]
+  APIT ~~~ TOTAL

@@ -1,0 +1,22 @@
+flowchart TB
+  classDef admin fill:#eef2ff,stroke:#6366f1,color:#1e1b4b
+  classDef emp fill:#e0f2fe,stroke:#0284c7,color:#0c4a6e
+  classDef sys fill:#f1f5f9,stroke:#64748b,color:#0f172a
+
+  S1["Admin opens /signup<br/>company name, name, email, password"]:::admin
+  S2["System creates ORGANIZATION (plan = Free)<br/>+ first USER with role admin<br/>+ session (JWT + refresh cookie)"]:::sys
+  S3["Admin models spaces<br/>Building (time zone) → Floors → Rooms<br/>capacity, amenities"]:::admin
+  S4{"Active rooms &lt; plan limit?"}
+  S5["Room created"]:::sys
+  S6["402 PLAN_LIMIT_REACHED<br/>→ Billing page → upgrade"]:::sys
+  S7["Admin invites colleagues<br/>email + role → one-time link (7 days)"]:::admin
+  S8["Colleague opens /invite/:token<br/>sees org name + role"]:::emp
+  S9["Colleague sets name + password"]:::emp
+  S10["System creates USER in that org,<br/>marks invitation accepted, signs them in"]:::sys
+  S11["Employee books rooms"]:::emp
+  S12["Optional: Settings → Connect Google Calendar"]:::emp
+
+  S1 --> S2 --> S3 --> S4
+  S4 -- yes --> S5 --> S7
+  S4 -- no --> S6 --> S3
+  S7 --> S8 --> S9 --> S10 --> S11 --> S12

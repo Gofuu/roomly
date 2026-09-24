@@ -1,0 +1,22 @@
+flowchart TB
+  classDef person fill:#e0f2fe,stroke:#0284c7,color:#0c4a6e
+  classDef system fill:#4f46e5,stroke:#3730a3,color:#ffffff,font-weight:bold
+  classDef ext fill:#fef3c7,stroke:#d97706,color:#78350f
+
+  Emp["👤 Employee<br/><small>Browses rooms, books, reschedules,<br/>cancels, sees live availability</small>"]:::person
+  Admin["👤 Organization Admin<br/><small>Manages buildings, floors, rooms,<br/>team members and the subscription</small>"]:::person
+
+  Roomly["🏢 ROOMLY<br/>Multi-tenant meeting-room booking SaaS<br/><small>Many companies share one deployment,<br/>each company's data fully isolated</small>"]:::system
+
+  Stripe["💳 Stripe<br/><small>Subscriptions, Checkout,<br/>Customer Portal, webhooks</small>"]:::ext
+  Google["📅 Google Calendar API<br/><small>Per-user OAuth; events created,<br/>updated, deleted for bookings</small>"]:::ext
+  Browser["🌐 Web browser<br/><small>React single-page app</small>"]:::ext
+
+  Emp -- "uses" --> Browser
+  Admin -- "uses" --> Browser
+  Browser -- "HTTPS REST + WebSocket" --> Roomly
+  Roomly -- "creates Checkout / Portal sessions" --> Stripe
+  Stripe -- "signed subscription webhooks" --> Roomly
+  Roomly -- "OAuth token exchange,<br/>calendar event sync" --> Google
+  Admin -. "pays via hosted Checkout" .-> Stripe
+  Emp -. "grants calendar access" .-> Google

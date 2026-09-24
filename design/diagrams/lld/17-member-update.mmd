@@ -1,0 +1,30 @@
+flowchart TB
+  classDef ok fill:#dcfce7,stroke:#16a34a,color:#14532d
+  classDef bad fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
+  classDef s fill:#eef2ff,stroke:#6366f1,color:#1e1b4b
+
+  S["PATCH /api/members/:id {name?, role?, isActive?}<br/>requireAdmin"]:::s
+  L["withTenant BEGIN<br/>SELECT id FROM organizations FOR UPDATE<br/>(serializes all membership changes in this org)"]:::s
+  U["UPDATE users SET ... WHERE id = :id RETURNING *"]:::s
+  F{"row updated?<br/>(RLS: same org only)"}
+  C["SELECT count(*) FROM users<br/>WHERE role = admin AND is_active"]:::s
+  Z{"count = 0?"}
+  D{"isActive = false?"}
+  CB["UPDATE bookings SET status = cancelled<br/>WHERE user_id = :id AND confirmed AND lower(during) > now()<br/>(trigger enqueues Google 'delete' jobs)"]:::ok
+  CM["COMMIT"]:::s
+  RV["withSystem: revoke all refresh tokens of that user<br/>(their current JWT lapses within 15 min;<br/>refresh already refuses inactive users)"]:::ok
+  OK["200 Member"]:::ok
+  E404["404 Member not found"]:::bad
+  E409["ROLLBACK → 409 LAST_ADMIN<br/>'Your organization needs at least one active admin'"]:::bad
+
+  S --> L --> U --> F
+  F -- no --> E404
+  F -- yes --> C --> Z
+  Z -- yes --> E409
+  Z -- no --> D
+  D -- yes --> CB --> CM --> RV --> OK
+  D -- no --> CM
+  CM -.-> OK
+
+  N["Test: two admins demote each other at the same moment → one 200, one 409, exactly one admin remains"]
+  E409 ~~~ N

@@ -1,0 +1,20 @@
+flowchart TB
+  classDef admin fill:#eef2ff,stroke:#6366f1,color:#1e1b4b
+  classDef ext fill:#fef3c7,stroke:#d97706,color:#78350f
+  classDef sys fill:#f1f5f9,stroke:#64748b,color:#0f172a
+
+  B1["Admin opens Billing<br/>sees plan, usage (rooms used / limit), plan cards"]:::admin
+  B2["Clicks 'Upgrade to Pro'"]:::admin
+  B3["API creates Stripe customer (once)<br/>+ Checkout Session → returns URL"]:::sys
+  B4["Stripe-hosted Checkout<br/>card 4242 4242 4242 4242 (test)"]:::ext
+  B5["Redirect back: /admin/billing?checkout=success<br/>page polls every 2 s"]:::admin
+  B6["Stripe sends customer.subscription.created"]:::ext
+  B7["Webhook handler: verify signature,<br/>record event id, map price → plan,<br/>set organizations.plan_id = pro"]:::sys
+  B8["Page shows 'You're on Pro'<br/>room limit 3 → 25"]:::admin
+  B9["Later: Manage billing → Stripe Customer Portal<br/>change plan, update card, cancel"]:::ext
+  B10["subscription.updated / deleted webhooks<br/>past_due keeps plan (grace); unpaid/canceled → Free"]:::sys
+
+  B1 --> B2 --> B3 --> B4 --> B5
+  B4 --> B6 --> B7 --> B8
+  B5 -. "sees result once webhook lands" .-> B8
+  B8 --> B9 --> B10 --> B1

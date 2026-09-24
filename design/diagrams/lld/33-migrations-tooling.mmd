@@ -1,0 +1,29 @@
+flowchart TB
+  classDef s fill:#eef2ff,stroke:#6366f1,color:#1e1b4b
+  classDef d fill:#dcfce7,stroke:#16a34a,color:#14532d
+  classDef c fill:#fef3c7,stroke:#d97706,color:#78350f
+
+  subgraph DEV["Local development"]
+    direction TB
+    DS["npm run db:start / db:reset / npm test"]:::c
+    ES{"Postgres reachable on :5433?"}
+    EP["embedded-postgres: initdb (UTF8, locale C) into .pgdata<br/>then start (real PostgreSQL 17 binaries)"]:::s
+    DS --> ES
+    ES -- no --> EP
+  end
+
+  subgraph PROD["Production"]
+    direction TB
+    PM["ECS one-off task: node apps/api/dist/migrate.js<br/>(esbuild bundle of scripts/lib/migrations.ts)"]:::c
+  end
+
+  R["ensureRoles(): CREATE or ALTER ROLE roomly_app / roomly_system LOGIN PASSWORD ..."]:::s
+  CD["createDatabase (dev/test only, fresh = DROP ... WITH (FORCE))"]:::s
+  M["migrate(db):<br/>CREATE TABLE IF NOT EXISTS schema_migrations<br/>for each db/migrations/*.sql not yet applied (sorted):<br/>  substitute :app_user / :system_user<br/>  BEGIN → run file → INSERT schema_migrations → COMMIT<br/>  (any error → ROLLBACK, stop)"]:::d
+  S["seed (db:reset only): Acme (Bengaluru, Pro) + Northwind (London, Free)<br/>users, spaces, bookings relative to today in each building's tz"]:::s
+
+  ES -- yes --> R
+  EP --> R
+  PM --> R
+  R --> CD --> M
+  M --> S

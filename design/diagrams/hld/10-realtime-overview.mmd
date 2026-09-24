@@ -1,0 +1,20 @@
+flowchart LR
+  classDef user fill:#e0f2fe,stroke:#0284c7,color:#0c4a6e
+  classDef sys fill:#eef2ff,stroke:#6366f1,color:#1e1b4b
+  classDef db fill:#dcfce7,stroke:#16a34a,color:#14532d
+
+  A["Alice (instance A)<br/>books Nilgiri 10:00"]:::user
+  API["Instance A<br/>POST /bookings → COMMIT"]:::sys
+  BUS["Event bus<br/>booking.created"]:::sys
+  IOA["Socket.io on A<br/>emit to channels:<br/>room:Nilgiri, building:HQ, user:Alice"]:::sys
+  PG[("Postgres NOTIFY<br/>socket.io adapter")]:::db
+  IOB["Socket.io on B<br/>delivers to its local sockets<br/>in those channels"]:::sys
+  Bob["Bob on instance B<br/>viewing HQ timeline"]:::user
+  Cara["Cara on instance A<br/>viewing Nilgiri week"]:::user
+  R["Each client invalidates booking queries<br/>→ refetch via REST (permission-checked)<br/>→ toast 'updated live'"]:::sys
+
+  A --> API --> BUS --> IOA
+  IOA --> Cara
+  IOA --> PG --> IOB --> Bob
+  Cara --> R
+  Bob --> R

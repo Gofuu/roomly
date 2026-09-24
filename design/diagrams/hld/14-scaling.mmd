@@ -1,0 +1,26 @@
+flowchart TB
+  classDef sys fill:#eef2ff,stroke:#6366f1,color:#1e1b4b
+  classDef db fill:#dcfce7,stroke:#16a34a,color:#14532d
+  classDef note fill:#fef9c3,stroke:#eab308,color:#713f12
+
+  LB["Load balancer (WebSocket-capable)"]:::sys
+  subgraph N["N identical stateless API instances"]
+    direction LR
+    I1["Instance 1<br/>HTTP + Socket.io + worker"]:::sys
+    I2["Instance 2<br/>HTTP + Socket.io + worker"]:::sys
+    I3["Instance N ..."]:::sys
+  end
+  PG[("PostgreSQL<br/>single source of truth")]:::db
+
+  LB --> I1 & I2 & I3
+  I1 & I2 & I3 --> PG
+
+  S1["Correctness never depends on one instance:<br/>• overlaps — exclusion constraint (DB)<br/>• tenant isolation — RLS (DB)<br/>• room cap / last admin — row locks (DB)"]:::note
+  S2["Coordination through Postgres, no Redis:<br/>• Socket.io broadcasts — LISTEN/NOTIFY adapter<br/>• outbox jobs — FOR UPDATE SKIP LOCKED leases<br/>• webhooks — event-id primary key (idempotent)"]:::note
+  S3["Stateless auth: JWT verified locally;<br/>refresh tokens in DB (any instance can rotate)"]:::note
+  S4["Per-instance only (upgrade path documented):<br/>• rate-limit counters → shared store<br/>• worker could become its own service"]:::note
+
+  PG --- S1
+  PG --- S2
+  N --- S3
+  N --- S4

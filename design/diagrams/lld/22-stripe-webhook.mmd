@@ -1,0 +1,48 @@
+flowchart TB
+  classDef ok fill:#dcfce7,stroke:#16a34a,color:#14532d
+  classDef bad fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
+  classDef s fill:#eef2ff,stroke:#6366f1,color:#1e1b4b
+  classDef skip fill:#f1f5f9,stroke:#64748b,color:#334155
+
+  IN["POST /api/webhooks/stripe<br/>mounted BEFORE express.json → raw Buffer body"]:::s
+  SIG{"constructEvent(raw, Stripe-Signature,<br/>STRIPE_WEBHOOK_SECRET) valid?"}
+  E400["400 BAD_SIGNATURE"]:::bad
+  TX["withSystem BEGIN"]:::s
+  IDEM{"INSERT stripe_events(id, type)<br/>ON CONFLICT DO NOTHING RETURNING id<br/>→ row returned?"}
+  DUP["outcome: duplicate (already processed)"]:::skip
+  TYPE{"event.type ∈ customer.subscription.<br/>created / updated / deleted ?"}
+  IGN1["outcome: ignored (recorded only)"]:::skip
+  ORG["SELECT organization WHERE stripe_customer_id = sub.customer<br/>OR id = sub.metadata.orgId  FOR UPDATE"]:::s
+  FOUND{"org found?"}
+  STALE{"event.created < subscriptions.last_event_at ?"}
+  OLD{"deleted AND sub.id ≠ current stripe_subscription_id ?"}
+  PRICE{"items[0].price.id maps to a plan?<br/>(STRIPE_PRICE_PRO / _ENTERPRISE)"}
+  UPS["UPSERT subscriptions (org_id): sub id, plan, status,<br/>current_period_end (from item), cancel_at_period_end,<br/>last_event_at = event.created"]:::ok
+  PLAN{"status ∈ {active, trialing, past_due}?"}
+  PAID["organizations.plan_id = mapped plan"]:::ok
+  FREE["organizations.plan_id = free"]:::ok
+  CM["COMMIT (event id + effects together)"]:::s
+  R200["200 {received: true, outcome}"]:::ok
+  ERR["exception → ROLLBACK (event id too) → 500<br/>→ Stripe retries later and it's processed normally"]:::bad
+  IGN2["outcome: ignored"]:::skip
+
+  IN --> SIG
+  SIG -- no --> E400
+  SIG -- yes --> TX --> IDEM
+  IDEM -- no --> DUP --> CM
+  IDEM -- yes --> TYPE
+  TYPE -- no --> IGN1 --> CM
+  TYPE -- yes --> ORG --> FOUND
+  FOUND -- no --> IGN2
+  FOUND -- yes --> STALE
+  STALE -- yes --> IGN2
+  STALE -- no --> OLD
+  OLD -- yes --> IGN2
+  OLD -- no --> PRICE
+  PRICE -- no --> IGN2
+  PRICE -- yes --> UPS --> PLAN
+  PLAN -- yes --> PAID --> CM
+  PLAN -- no --> FREE --> CM
+  IGN2 --> CM
+  CM --> R200
+  TX -. "any error" .-> ERR

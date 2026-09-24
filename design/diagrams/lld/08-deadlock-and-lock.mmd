@@ -1,0 +1,29 @@
+flowchart TB
+  classDef bad fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
+  classDef good fill:#dcfce7,stroke:#16a34a,color:#14532d
+  classDef n fill:#fef9c3,stroke:#eab308,color:#713f12
+
+  subgraph BEFORE["Before migration 003 — constraint only"]
+    direction TB
+    B1["Tx A inserts 10:00–11:00<br/>→ index entry written (uncommitted)"]:::bad
+    B2["Tx B inserts 10:30–11:30<br/>→ index entry written (uncommitted)"]:::bad
+    B3["A's overlap check finds B's entry → A waits for B"]:::bad
+    B4["B's overlap check finds A's entry → B waits for A"]:::bad
+    B5["Wait cycle → after deadlock_timeout (1 s)<br/>Postgres aborts one: 40P01"]:::bad
+    B6["Victim retried by retryTransient<br/>(correct, but 1 s stalls chain under bursts)"]:::n
+    B1 --> B3
+    B2 --> B4
+    B3 & B4 --> B5 --> B6
+  end
+
+  subgraph AFTER["After migration 003 — BEFORE trigger takes the room lock first"]
+    direction TB
+    F1["Tx A: advisory lock(room) → granted"]:::good
+    F2["Tx B: advisory lock(room) → queued"]:::good
+    F3["A inserts + checks → no one else has an entry → COMMIT"]:::good
+    F4["B proceeds, sees A's committed row → 23P01 immediately"]:::good
+    F5["No cycles possible (one lock per room, taken before the index write)<br/>test: 60 concurrent random bookings → 0 retries"]:::n
+    F1 --> F2 --> F3 --> F4 --> F5
+  end
+
+  BEFORE ~~~ AFTER

@@ -1,0 +1,34 @@
+flowchart TB
+  classDef sync fill:#eef2ff,stroke:#6366f1,color:#1e1b4b
+  classDef async fill:#fef3c7,stroke:#d97706,color:#78350f
+  classDef db fill:#dcfce7,stroke:#16a34a,color:#14532d
+
+  subgraph TX["ONE database transaction (all-or-nothing)"]
+    direction TB
+    W1["INSERT / UPDATE bookings"]:::db
+    W2["Trigger: per-room advisory lock"]:::db
+    W3["Exclusion constraint check"]:::db
+    W4["Trigger: INSERT calendar_sync_outbox<br/>(if organizer connected Google)"]:::db
+    W2 --> W1 --> W3 --> W4
+  end
+
+  C["COMMIT"]:::sync
+  R["HTTP 201 to the booker"]:::sync
+
+  subgraph After["AFTER commit — never inside the transaction"]
+    direction TB
+    E1["Publish booking event → Socket.io<br/>(best effort; clients refetch on reconnect)"]:::async
+    E2["Worker drains outbox → Google Calendar<br/>(retries with backoff; survives crashes)"]:::async
+  end
+
+  subgraph Inbound["Inbound async"]
+    direction TB
+    S1["Stripe webhook → own transaction<br/>(event id + plan change together)"]:::async
+  end
+
+  TX --> C --> R
+  C --> E1
+  C --> E2
+
+  N1["Why: slow or failing external calls (Google, Stripe)<br/>never hold locks or fail a booking,<br/>and nothing is announced that later rolls back"]
+  After -.-> N1

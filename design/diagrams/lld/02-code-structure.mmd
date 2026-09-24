@@ -1,0 +1,23 @@
+flowchart LR
+  classDef f fill:#eef2ff,stroke:#6366f1,color:#1e1b4b
+  classDef d fill:#f1f5f9,stroke:#64748b,color:#0f172a
+  classDef t fill:#dcfce7,stroke:#16a34a,color:#14532d
+
+  R["C:/Meeting_room (npm workspaces)"]:::d
+  R --> A["apps/api"]:::d
+  R --> W["apps/web"]:::d
+  R --> S["packages/shared"]:::d
+  R --> DB["db/migrations<br/>001…007 *.sql"]:::t
+  R --> SC["scripts/<br/>db.ts (start/reset) · migrate.ts · seed.ts<br/>lib/env.ts · lib/migrations.ts · lib/pg-admin.ts<br/>test-global-setup.ts"]:::d
+  R --> DS["design/ · docs/ · Dockerfile<br/>.github/workflows/ci.yml · vitest.config.ts"]:::d
+
+  A --> AI["src/index.ts — http server + Socket.io + worker<br/>src/app.ts — Express app factory<br/>src/config.ts — env validation<br/>build.mjs — esbuild bundle"]:::f
+  A --> AM["src/auth: password · tokens · service · routes · middleware<br/>src/team: invitations · members<br/>src/spaces: routes · plan-limits<br/>src/bookings: routes<br/>src/billing: gateway · routes · webhook<br/>src/integrations: google-client · google-routes · crypto · calendar-worker<br/>src/realtime: bus · socket<br/>src/db: index · retry · types · migrate-cli<br/>src/http: errors · params · rate-limit"]:::f
+  A --> AT["test/db: booking-constraint · booking-concurrency · tenancy<br/>test/api: auth · spaces · members · bookings · realtime<br/>billing · calendar-sync · hardening<br/>test/helpers: db · api"]:::t
+
+  W --> WI["src/main.tsx · App.tsx (routes, guards, lazy pages)<br/>index.css (Tailwind v4 + FullCalendar theme)"]:::f
+  W --> WL["src/lib: api · auth · queries · realtime · time"]:::f
+  W --> WC["src/components: ui · Modal · Logo · AppLayout<br/>BookingDialog · BuildingTimeline · LiveIndicators"]:::f
+  W --> WP["src/pages: HomePage · RoomPage · MyBookingsPage · SettingsPage<br/>auth/: Login · Signup · AcceptInvite · AuthLayout<br/>admin/: SpacesPage · TeamPage · BillingPage"]:::f
+
+  S --> SS["src: auth · spaces · bookings · billing · realtime · index"]:::f

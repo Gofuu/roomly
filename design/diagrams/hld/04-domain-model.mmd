@@ -1,0 +1,26 @@
+erDiagram
+  PLAN ||--o{ ORGANIZATION : "sets limits for"
+  ORGANIZATION ||--o| SUBSCRIPTION : "pays through"
+  ORGANIZATION ||--o{ USER : "employs"
+  ORGANIZATION ||--o{ INVITATION : "sends"
+  ORGANIZATION ||--o{ BUILDING : "owns"
+  BUILDING ||--o{ FLOOR : "has"
+  FLOOR ||--o{ ROOM : "has"
+  ROOM ||--o{ BOOKING : "is reserved by"
+  USER ||--o{ BOOKING : "organizes"
+  USER ||--o{ REFRESH_TOKEN : "holds sessions"
+  USER ||--o| GOOGLE_CONNECTION : "may connect"
+  BOOKING ||--o{ CALENDAR_SYNC_JOB : "queues sync"
+
+  ORGANIZATION { string name "tenant" }
+  PLAN { string id "free / pro / enterprise" }
+  SUBSCRIPTION { string status "mirrors Stripe" }
+  USER { string role "admin / employee" }
+  INVITATION { string token_hash "one-time link" }
+  BUILDING { string timezone "IANA zone" }
+  FLOOR { int level "ordering" }
+  ROOM { int capacity "and amenities" }
+  BOOKING { tstzrange during "no overlaps per room" }
+  REFRESH_TOKEN { uuid family_id "rotation chain" }
+  GOOGLE_CONNECTION { string refresh_token_enc "AES-256-GCM" }
+  CALENDAR_SYNC_JOB { string action "upsert / delete" }

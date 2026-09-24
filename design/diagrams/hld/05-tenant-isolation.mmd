@@ -1,0 +1,18 @@
+flowchart TB
+  classDef layer fill:#eef2ff,stroke:#6366f1,color:#1e1b4b
+  classDef db fill:#dcfce7,stroke:#16a34a,color:#14532d
+  classDef bad fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
+
+  Req["Incoming request<br/>Authorization: Bearer JWT {sub, org, role}"]
+  L1["Layer 1 — Signed identity<br/>org id comes ONLY from the verified JWT,<br/>never from the URL or body"]:::layer
+  L2["Layer 2 — Tenant-scoped transaction<br/>BEGIN; set_config('app.org_id', org, is_local = true)"]:::layer
+  L3["Layer 3 — Row-Level Security (Postgres)<br/>USING (org_id = current_org_id())<br/>WITH CHECK (org_id = current_org_id())"]:::db
+  L4["Layer 4 — Composite foreign keys<br/>(room_id, org_id) → rooms(id, org_id)<br/>child rows can't point at another tenant's parent"]:::db
+  L5["Layer 5 — Least-privilege DB roles<br/>roomly_app: no DELETE on bookings, no refresh_tokens,<br/>no UPDATE of plan_id; neither role has BYPASSRLS"]:::db
+  OK["Only this org's rows are visible or writable"]
+
+  Req --> L1 --> L2 --> L3 --> L4 --> L5 --> OK
+
+  X1["Missing app.org_id"]:::bad -. "current_org_id() = NULL → zero rows (fails closed)" .-> L3
+  X2["Guessed UUID of another org's room"]:::bad -. "RLS hides it → 404; FK rejects references → 23503" .-> L4
+  X3["Connection reused by next request"]:::bad -. "is_local setting vanishes at COMMIT/ROLLBACK" .-> L2

@@ -1,0 +1,21 @@
+flowchart TB
+  classDef s fill:#eef2ff,stroke:#6366f1,color:#1e1b4b
+  classDef bad fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
+  classDef ok fill:#dcfce7,stroke:#16a34a,color:#14532d
+
+  A["node apps/api/dist/server.js (or tsx watch src/index.ts)"]:::s
+  B["config.ts: dotenv (.env, then .env.example defaults)<br/>required() for every mandatory var"]:::s
+  C{"production AND dev JWT_SECRET / TOKEN_ENCRYPTION_KEY?<br/>or key ≠ 32 bytes?"}
+  X["throw → process exits (refuse insecure start)"]:::bad
+  D["db/index.ts: appPool (max 20, roomly_app), systemPool (max 5, roomly_system)<br/>Kysely instances, DATE parser"]:::s
+  E["createApp(): middleware + routers"]:::s
+  F["http.createServer(app)"]:::s
+  G["attachRealtime(server): adapter pool (max 3) → Postgres adapter<br/>(LISTEN connection established asynchronously)<br/>io.use(handshake auth), bus listener"]:::s
+  H["startCalendarWorker(5000): interval + bus wake-up"]:::s
+  I["server.listen(API_PORT)"]:::ok
+  J["SIGINT / SIGTERM → stop worker → io.close + adapter pool end<br/>→ server.close → closeDb → exit 0"]:::s
+
+  A --> B --> C
+  C -- yes --> X
+  C -- no --> D --> E --> F --> G --> H --> I
+  I -.-> J

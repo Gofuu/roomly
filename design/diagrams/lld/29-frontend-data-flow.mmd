@@ -1,0 +1,27 @@
+flowchart TB
+  classDef s fill:#e0f2fe,stroke:#0284c7,color:#0c4a6e
+  classDef a fill:#eef2ff,stroke:#6366f1,color:#1e1b4b
+  classDef w fill:#fef3c7,stroke:#d97706,color:#78350f
+
+  C["Component (e.g. HomePage)"]:::s
+  Q["useBuildingSchedule(buildingId, date)<br/>TanStack Query key ['bookings','building',id,date]<br/>placeholderData keeps previous day visible"]:::s
+  F["apiFetch(path)<br/>adds Authorization: Bearer &lt;in-memory token&gt;"]:::a
+  R{"response 401 and we had a token?"}
+  RS["refreshSession() — single flight:<br/>shared promise in this tab<br/>+ navigator.locks('roomly-refresh') across tabs<br/>POST /api/auth/refresh (cookie)"]:::w
+  OK{"refresh ok?"}
+  RT["retry original request once"]:::a
+  OUT["applySession(null) → AuthProvider state signed-out → /login"]:::w
+  ERR["throw ApiError {status, code, message, details}<br/>→ errorMessage() for UI (field errors first)"]:::a
+  DATA["JSON → cache → render"]:::s
+  INV["Invalidation triggers:<br/>• mutation success (BookingDialog → ['bookings'])<br/>• socket booking.changed<br/>• socket (re)connect"]:::w
+
+  C --> Q --> F --> R
+  R -- no, ok --> DATA
+  R -- "no, other error" --> ERR
+  R -- yes --> RS --> OK
+  OK -- yes --> RT --> DATA
+  OK -- no --> OUT
+  INV -. "refetch active queries" .-> Q
+
+  B["Page load: AuthProvider mounts → refreshSession()<br/>(StrictMode double-mount shares the same promise, so the cookie is used once)"]:::w
+  B -.-> RS

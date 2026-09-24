@@ -1,0 +1,18 @@
+sequenceDiagram
+  autonumber
+  participant A as Transaction A
+  participant L as Room advisory lock
+  participant DB as bookings + GiST index
+  participant B as Transaction B
+
+  Note over A,B: Both want Nilgiri 10:00–11:00 at the same instant (READ COMMITTED)
+  A->>L: pg_advisory_xact_lock(Nilgiri) → granted
+  B->>L: pg_advisory_xact_lock(Nilgiri) → WAITS
+  A->>DB: insert row + index entry, check overlaps → none
+  A->>A: COMMIT (lock released)
+  L-->>B: lock granted
+  B->>DB: insert row + index entry, check overlaps
+  DB-->>B: finds A's committed row → ERROR 23P01
+  B->>B: ROLLBACK → API answers 409
+  Note over A,B: Had A rolled back instead, B's check would find nothing and B would succeed
+  Note over A,B: Without the advisory lock, B would wait on A's uncommitted index entry instead: same outcome, but several simultaneous writers could wait on each other (deadlock → 40P01 → retry)

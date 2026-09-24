@@ -1,0 +1,27 @@
+flowchart TB
+  classDef q fill:#eef2ff,stroke:#6366f1,color:#1e1b4b
+  classDef db fill:#dcfce7,stroke:#16a34a,color:#14532d
+
+  subgraph DAY["GET /buildings/:id/schedule?date=2030-03-31"]
+    direction TB
+    D1["Postgres computes the building's local day:<br/>day_start = ('2030-03-31'::date)::timestamp AT TIME ZONE tz<br/>day_end   = ('2030-03-31'::date + 1)::timestamp AT TIME ZONE tz"]:::db
+    D2["DST-safe: Europe/London on 2030-03-31 is 23 hours long (tested)"]:::q
+    D3["Rooms: active rooms of this building, ORDER BY level, name"]:::q
+    D4["Bookings: status = confirmed AND during && tstzrange(day_start, day_end)<br/>(a 23:30–00:30 booking appears on both days)"]:::db
+    D1 --> D2 --> D3 --> D4
+  end
+
+  subgraph ROOM["GET /rooms/:id/bookings?from&to (≤ 42 days)"]
+    direction TB
+    R1["room_id = :id AND during && tstzrange(from, to)<br/>served by the exclusion constraint's GiST index (room_id, during)"]:::db
+  end
+
+  subgraph AV["GET /availability?from&to&buildingId&minCapacity&amenities"]
+    direction TB
+    A1["active rooms<br/>AND capacity ≥ minCapacity<br/>AND amenities @> requested::text[]<br/>AND NOT EXISTS (confirmed booking with during && [from,to))"]:::db
+  end
+
+  subgraph MINE["GET /bookings/mine?when=upcoming|past"]
+    direction TB
+    M1["user_id = me ORDER BY lower(during)<br/>index bookings_user_start (user_id, lower(during))<br/>upcoming: confirmed AND upper(during) > now()<br/>past: ended OR cancelled (LIMIT 100)"]:::db
+  end

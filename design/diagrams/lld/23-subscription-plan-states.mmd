@@ -1,0 +1,26 @@
+flowchart LR
+  classDef free fill:#f1f5f9,stroke:#64748b,color:#0f172a,font-weight:bold
+  classDef paid fill:#dcfce7,stroke:#16a34a,color:#14532d,font-weight:bold
+  classDef grace fill:#fef3c7,stroke:#d97706,color:#78350f,font-weight:bold
+
+  F(["FREE plan<br/><small>no subscription / canceled<br/>3 active rooms</small>"]):::free
+  I(["incomplete<br/><small>checkout started, payment pending<br/>plan stays Free</small>"]):::free
+  A(["active / trialing<br/><small>plan = Pro or Enterprise<br/>25 / unlimited rooms</small>"]):::paid
+  PD(["past_due<br/><small>GRACE: plan kept<br/>Stripe retries the card</small>"]):::grace
+  U(["unpaid<br/><small>plan → Free</small>"]):::free
+  C(["canceled (deleted)<br/><small>plan → Free</small>"]):::free
+
+  F -- "Checkout" --> I
+  I -- "payment succeeds" --> A
+  F -- "subscription.created active" --> A
+  A -- "renewal payment fails" --> PD
+  PD -- "card updated, paid" --> A
+  PD -- "retries exhausted" --> U
+  U -- "paid" --> A
+  A -- "cancel in Portal (at period end)" --> C
+  U -- "Stripe cancels" --> C
+  C --> F
+  A -- "plan change in Portal<br/>(price → other plan)" --> A
+
+  N["On any downgrade: existing rooms keep working,<br/>but adding/reactivating rooms returns 402 until<br/>active rooms ≤ new limit (UI shows over-limit warning)"]
+  C ~~~ N

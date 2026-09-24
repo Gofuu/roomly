@@ -1,0 +1,24 @@
+flowchart LR
+  classDef st fill:#eef2ff,stroke:#6366f1,color:#1e1b4b,font-weight:bold
+  classDef bad fill:#fee2e2,stroke:#dc2626,color:#7f1d1d,font-weight:bold
+  classDef end1 fill:#f1f5f9,stroke:#64748b,color:#0f172a
+  classDef n fill:#fef9c3,stroke:#eab308,color:#713f12
+
+  Start(("start"))
+  Rej(["REJECTED<br/><small>row never exists</small>"]):::bad
+  Conf(["CONFIRMED<br/><small>counts toward the<br/>exclusion constraint</small>"]):::st
+  Canc(["CANCELLED<br/><small>kept for history,<br/>slot freed</small>"]):::end1
+  Past(["PAST<br/><small>read-only</small>"]):::end1
+
+  Start -- "POST /bookings<br/>overlap → 23P01 → 409" --> Rej
+  Start -- "POST /bookings<br/>passes EXCLUDE check → 201" --> Conf
+  Conf -- "PATCH title<br/>(no re-check needed)" --> Conf
+  Conf -- "DELETE /bookings/:id (organizer or admin)<br/>or organizer deactivated (future bookings only)" --> Canc
+  Conf -- "end ≤ now (time passes)" --> Past
+
+  Resched["RESCHEDULE CHECK<br/>EXCLUDE constraint re-evaluated<br/>against the new time range"]:::n
+  Conf -- "PATCH start/end" --> Resched
+  Resched -- "no overlap → 200<br/>overlap → 409, booking unchanged" --> Conf
+
+  N1["Rules enforced by the database:<br/>• CHECK status = cancelled ⇔ cancelled_at IS NOT NULL<br/>• partial constraint: WHERE status = 'confirmed'<br/>• app role has no DELETE privilege on bookings<br/>• changes to PAST bookings → 400 (API)"]:::n
+  Canc ~~~ N1

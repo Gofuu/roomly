@@ -1,0 +1,33 @@
+sequenceDiagram
+  autonumber
+  participant C as Browser (socket.io-client)
+  participant IO as Socket.io server
+  participant V as verifyAccessToken
+  participant DB as Postgres (withTenant)
+
+  C->>IO: WebSocket /socket.io, auth: { token: current access JWT }
+  IO->>V: verify HS256, issuer, audience, exp
+  alt invalid / missing
+    IO-->>C: connect_error "UNAUTHORIZED"
+    C->>C: refreshSession() then connect() again
+  end
+  IO->>DB: SELECT name FROM users WHERE id AND is_active (RLS)
+  IO->>IO: socket.data = {auth, name}, setTimeout(disconnect, exp − now)
+  IO->>IO: join channel org:{org}:user:{userId}
+  IO-->>C: connect → status Live, invalidate booking queries (refetch)
+
+  C->>IO: emit subscribe {kind: room | building, id}
+  IO->>IO: id must be a UUID
+  IO->>DB: withTenant: SELECT room/building (RLS, inactive rooms only for admins)
+  alt not visible to this tenant
+    IO-->>C: ack {ok: false, error: NOT_FOUND}
+  else visible
+    IO->>IO: join org:{org}:{kind}:{id}
+    IO-->>C: ack {ok: true}
+    IO->>IO: fetchSockets(channel) across all instances → distinct viewers
+    IO-->>C: presence {kind, id, viewers[]} to everyone in channel
+  end
+
+  Note over IO,C: When the token expires the server disconnects ("io server disconnect")
+  IO-->>C: disconnect
+  C->>C: refreshSession() → connect() with new token → re-subscribe on 'connect'

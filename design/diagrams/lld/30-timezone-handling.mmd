@@ -1,0 +1,18 @@
+flowchart LR
+  classDef u fill:#e0f2fe,stroke:#0284c7,color:#0c4a6e
+  classDef a fill:#eef2ff,stroke:#6366f1,color:#1e1b4b
+  classDef d fill:#dcfce7,stroke:#16a34a,color:#14532d
+
+  V["Viewer in London<br/>looks at Bengaluru HQ<br/>(building tz Asia/Kolkata)"]:::u
+  PICK["Picks date 2026-09-25, 10:00–11:00<br/>(wall clock of the BUILDING)"]:::u
+  LX["luxon: DateTime.fromISO('2026-09-25T10:00', {zone: 'Asia/Kolkata'})<br/>→ '2026-09-25T10:00:00+05:30'"]:::a
+  API["API validates ISO with offset,<br/>whole minutes"]:::a
+  DB["Postgres: tstzrange stored as absolute instants (UTC)<br/>[04:30Z, 05:30Z)"]:::d
+  BACK["API returns ISO UTC strings"]:::a
+  SHOW["UI renders inZone(iso, building.tz) → '10:00 – 11:00'<br/>+ 'times in GMT+5:30' hint if viewer's zone differs"]:::u
+  DAY["Day boundaries for the timeline are computed<br/>by Postgres in the building's zone (DST-safe)"]:::d
+  GC["Google event: dateTime (UTC) + timeZone: building tz"]:::a
+
+  V --> PICK --> LX --> API --> DB --> BACK --> SHOW
+  DB --> DAY
+  DB --> GC

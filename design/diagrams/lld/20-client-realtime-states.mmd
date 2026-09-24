@@ -1,0 +1,15 @@
+flowchart LR
+  classDef live fill:#dcfce7,stroke:#16a34a,color:#14532d,font-weight:bold
+  classDef warn fill:#fef3c7,stroke:#d97706,color:#78350f,font-weight:bold
+  classDef bad fill:#fee2e2,stroke:#dc2626,color:#7f1d1d,font-weight:bold
+
+  CONN(["CONNECTING<br/><small>badge: Reconnecting…</small>"]):::warn
+  LIVE(["LIVE<br/><small>badge: Live (green)</small>"]):::live
+  OFF(["OFFLINE<br/><small>badge: Offline</small>"]):::bad
+
+  CONN -- "connect<br/>→ refetch bookings<br/>→ re-subscribe channels" --> LIVE
+  LIVE -- "network drop<br/>(auto-reconnect with backoff)" --> CONN
+  LIVE -- "server disconnect (token expired)<br/>→ refreshSession()" --> CONN
+  CONN -- "connect_error UNAUTHORIZED<br/>→ refreshSession()" --> CONN
+  CONN -- "refresh failed<br/>(session gone)" --> OFF
+  OFF -- "user signs in again" --> CONN

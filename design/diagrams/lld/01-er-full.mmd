@@ -1,0 +1,137 @@
+erDiagram
+  plans ||--o{ organizations : "plan_id"
+  plans ||--o{ subscriptions : "plan_id"
+  organizations ||--o| subscriptions : "org_id (PK)"
+  organizations ||--o{ users : "org_id"
+  organizations ||--o{ invitations : "org_id"
+  users ||--o{ invitations : "(invited_by, org_id)"
+  users ||--o{ refresh_tokens : "user_id"
+  refresh_tokens ||--o| refresh_tokens : "replaced_by"
+  organizations ||--o{ buildings : "org_id"
+  buildings ||--o{ floors : "(building_id, org_id)"
+  floors ||--o{ rooms : "(floor_id, org_id)"
+  rooms ||--o{ bookings : "(room_id, org_id)"
+  users ||--o{ bookings : "(user_id, org_id)"
+  users ||--o| google_connections : "(user_id, org_id)"
+  bookings ||--o{ calendar_sync_outbox : "booking_id"
+  organizations ||--o{ calendar_sync_outbox : "org_id"
+
+  plans {
+    text id PK "free, pro, enterprise"
+    text name
+    int room_limit "NULL = unlimited"
+    int monthly_price_cents
+    int sort_order
+  }
+  organizations {
+    uuid id PK
+    text name "1-120 chars"
+    text slug UK "kebab-case"
+    text plan_id FK "webhook-only writes"
+    text stripe_customer_id UK
+    timestamptz created_at
+  }
+  subscriptions {
+    uuid org_id PK, FK
+    text stripe_subscription_id UK
+    text plan_id FK
+    text status "Stripe status"
+    timestamptz current_period_end
+    boolean cancel_at_period_end
+    timestamptz last_event_at "ordering guard"
+    timestamptz updated_at
+  }
+  users {
+    uuid id PK
+    uuid org_id FK
+    citext email UK "global: one org per user"
+    text name
+    text password_hash "argon2id"
+    user_role role "admin | employee"
+    boolean is_active
+    timestamptz created_at
+  }
+  invitations {
+    uuid id PK
+    uuid org_id FK
+    citext email "UK while open, per org"
+    user_role role
+    text token_hash UK "sha256"
+    uuid invited_by FK
+    timestamptz expires_at
+    timestamptz accepted_at
+    timestamptz revoked_at
+  }
+  refresh_tokens {
+    uuid id PK
+    uuid user_id FK
+    uuid family_id "indexed"
+    text token_hash UK "sha256"
+    timestamptz expires_at
+    timestamptz revoked_at
+    uuid replaced_by FK
+  }
+  buildings {
+    uuid id PK
+    uuid org_id FK
+    text name "UK per org"
+    text address
+    text timezone "CHECK is_valid_timezone"
+  }
+  floors {
+    uuid id PK
+    uuid org_id FK
+    uuid building_id FK
+    text name
+    int level "UK per building"
+  }
+  rooms {
+    uuid id PK
+    uuid org_id FK
+    uuid floor_id FK
+    text name "UK per floor"
+    int capacity "1-500"
+    text_array amenities
+    boolean is_active
+  }
+  bookings {
+    uuid id PK
+    uuid org_id FK
+    uuid room_id FK
+    uuid user_id FK
+    text title "1-200 chars"
+    tstzrange during "EXCLUDE room_id =, during &&"
+    booking_status status "confirmed | cancelled"
+    timestamptz created_at
+    timestamptz updated_at
+    timestamptz cancelled_at "set iff cancelled"
+  }
+  google_connections {
+    uuid user_id PK, FK
+    uuid org_id FK
+    text google_email
+    text refresh_token_enc "AES-256-GCM, not granted to app"
+    text scopes
+    timestamptz connected_at
+  }
+  calendar_sync_outbox {
+    bigserial id PK
+    uuid org_id FK
+    uuid booking_id FK
+    uuid user_id
+    text action "upsert | delete"
+    int attempts
+    timestamptz run_after "lease / backoff"
+    text last_error
+    timestamptz done_at "NULL = pending"
+  }
+  stripe_events {
+    text id PK "evt_... idempotency"
+    text type
+    timestamptz received_at
+  }
+  socket_io_attachments {
+    bigserial id UK
+    timestamptz created_at
+    bytea payload "large NOTIFY payloads"
+  }

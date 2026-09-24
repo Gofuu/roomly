@@ -1,0 +1,31 @@
+flowchart LR
+  classDef role fill:#eef2ff,stroke:#6366f1,color:#1e1b4b,font-weight:bold
+  classDef t fill:#dcfce7,stroke:#16a34a,color:#14532d
+  classDef no fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
+
+  SU["postgres / RDS master<br/>(owner of all tables)<br/>used ONLY by migrations"]:::role
+  APP["roomly_app<br/>LOGIN, not superuser, no BYPASSRLS<br/>every tenant request"]:::role
+  SYS["roomly_system<br/>LOGIN, not superuser, no BYPASSRLS<br/>auth, webhooks, worker, socket adapter"]:::role
+
+  subgraph APPGRANTS["roomly_app — policy tenant_isolation (org_id = current_org_id())"]
+    A1["SELECT plans"]:::t
+    A2["organizations: SELECT, UPDATE (name, stripe_customer_id)"]:::t
+    A3["subscriptions: SELECT"]:::t
+    A4["users, invitations: SELECT, INSERT, UPDATE"]:::t
+    A5["buildings, floors, rooms: SELECT, INSERT, UPDATE, DELETE"]:::t
+    A6["bookings: SELECT, INSERT, UPDATE"]:::t
+    A7["google_connections: SELECT (not refresh_token_enc), DELETE"]:::t
+    A8["calendar_sync_outbox: SELECT, INSERT"]:::t
+    N1["✗ refresh_tokens · ✗ stripe_events · ✗ DELETE bookings<br/>✗ UPDATE plan_id · ✗ refresh_token_enc"]:::no
+  end
+
+  subgraph SYSGRANTS["roomly_system — policy system_access TO roomly_system USING (true)"]
+    S1["all tenant tables: SELECT, INSERT, UPDATE, DELETE"]:::t
+    S2["refresh_tokens, plans: full"]:::t
+    S3["stripe_events: SELECT, INSERT"]:::t
+    S4["socket_io_attachments: SELECT, INSERT, DELETE"]:::t
+  end
+
+  SU -- "CREATE / ALTER ROLE ... LOGIN PASSWORD" --> APP & SYS
+  APP --> APPGRANTS
+  SYS --> SYSGRANTS

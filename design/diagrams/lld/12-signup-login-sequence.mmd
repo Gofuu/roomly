@@ -1,0 +1,38 @@
+sequenceDiagram
+  autonumber
+  actor U as Browser
+  participant A as /api/auth
+  participant RL as authRateLimit
+  participant PW as argon2id
+  participant DB as Postgres (withSystem)
+
+  rect rgb(238, 242, 255)
+  Note over U,DB: SIGNUP creates a tenant
+  U->>A: POST /signup {orgName, name, email, password}
+  A->>RL: ≤ N requests / minute / IP ?
+  A->>PW: hash(password)  (before opening a transaction)
+  A->>DB: BEGIN
+  A->>DB: email already a user? → 409 EMAIL_TAKEN
+  A->>DB: slug = slugify(orgName), add -xxxxxx if taken
+  A->>DB: INSERT organizations (plan free)
+  A->>DB: INSERT users (role admin)
+  A->>DB: INSERT refresh_tokens (new family_id, sha256(token))
+  A->>DB: COMMIT
+  A-->>U: 201 {accessToken, expiresIn, user, org} + Set-Cookie roomly_rt (httpOnly, SameSite=Strict, Path=/api/auth)
+  end
+
+  rect rgb(240, 253, 244)
+  Note over U,DB: LOGIN
+  U->>A: POST /login {email, password}
+  A->>DB: SELECT user JOIN organization WHERE email (citext)
+  A->>PW: verify(hash or DUMMY hash, password)
+  Note right of PW: always one argon2 verify, so unknown emails take the same time
+  alt wrong password or unknown email
+    A-->>U: 401 Incorrect email or password (same message)
+  else user deactivated
+    A-->>U: 403 ACCOUNT_DISABLED
+  else ok
+    A->>DB: INSERT refresh_tokens (new family)
+    A-->>U: 200 session + refresh cookie
+  end
+  end

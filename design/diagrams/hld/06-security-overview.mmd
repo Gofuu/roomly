@@ -1,0 +1,45 @@
+flowchart LR
+  classDef t fill:#fce7f3,stroke:#db2777,color:#831843
+  classDef c fill:#eef2ff,stroke:#6366f1,color:#1e1b4b
+
+  subgraph Threats
+    direction TB
+    A1["Password guessing"]:::t
+    A2["Stolen access token"]:::t
+    A3["Stolen refresh token"]:::t
+    A4["XSS reading tokens"]:::t
+    A5["CSRF on cookie endpoints"]:::t
+    A6["Cross-tenant data access"]:::t
+    A7["Double booking race"]:::t
+    A8["Forged billing webhook"]:::t
+    A9["Leaked Google tokens from DB"]:::t
+    A10["OAuth callback hijack"]:::t
+    A11["Self-upgrade of plan"]:::t
+  end
+
+  subgraph Controls
+    direction TB
+    C1["argon2id + per-IP rate limit (429)<br/>+ dummy hash for unknown emails"]:::c
+    C2["15-minute JWT lifetime;<br/>sockets dropped at expiry"]:::c
+    C3["Rotation on every use + family revocation on reuse"]:::c
+    C4["Access token in memory only;<br/>refresh token httpOnly cookie"]:::c
+    C5["SameSite=Strict, Path=/api/auth,<br/>Origin check"]:::c
+    C6["RLS + composite FKs + scoped roles;<br/>404 instead of 403"]:::c
+    C7["EXCLUDE USING gist constraint<br/>+ per-room advisory lock"]:::c
+    C8["HMAC signature over raw body;<br/>idempotent event log"]:::c
+    C9["AES-256-GCM at rest;<br/>column not granted to app role"]:::c
+    C10["Signed state JWT + httpOnly nonce cookie"]:::c
+    C11["plan_id column writable only by system role (webhook)"]:::c
+  end
+
+  A1 --> C1
+  A2 --> C2
+  A3 --> C3
+  A4 --> C4
+  A5 --> C5
+  A6 --> C6
+  A7 --> C7
+  A8 --> C8
+  A9 --> C9
+  A10 --> C10
+  A11 --> C11

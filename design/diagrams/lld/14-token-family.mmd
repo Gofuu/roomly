@@ -1,0 +1,22 @@
+flowchart LR
+  classDef live fill:#dcfce7,stroke:#16a34a,color:#14532d
+  classDef used fill:#f1f5f9,stroke:#64748b,color:#334155
+  classDef dead fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
+
+  L["login → family F"]
+  T1["token 1<br/>revoked (rotated)<br/>replaced_by → 2"]:::used
+  T2["token 2<br/>revoked (rotated)<br/>replaced_by → 3"]:::used
+  T3["token 3<br/>LIVE — in the browser cookie"]:::live
+
+  L --> T1 -- "refresh" --> T2 -- "refresh" --> T3
+
+  ATT["Attacker replays stolen token 1"]:::dead
+  ATT -- "token 1 is already revoked" --> REUSE["Reuse detected:<br/>revoke every token in family F<br/>(token 3 included)"]:::dead
+  REUSE --> BOTH["Attacker AND real user must log in again<br/>(we can't tell which one is legitimate)"]:::dead
+
+  subgraph Client["Browser-side protection against false alarms"]
+    direction TB
+    C1["one in-flight refresh per tab (shared promise)"]
+    C2["navigator.locks 'roomly-refresh' across tabs:<br/>the next tab sends the cookie the previous tab just received"]
+    C1 --> C2
+  end

@@ -1,0 +1,30 @@
+flowchart LR
+  classDef dev fill:#e0f2fe,stroke:#0284c7,color:#0c4a6e
+  classDef ci fill:#eef2ff,stroke:#6366f1,color:#1e1b4b
+  classDef cd fill:#dcfce7,stroke:#16a34a,color:#14532d
+  classDef todo fill:#f1f5f9,stroke:#94a3b8,color:#475569,stroke-dasharray: 5 5
+
+  D1["Developer<br/>git push (SSH)"]:::dev
+  G["GitHub<br/>Gofuu/roomly"]:::dev
+
+  subgraph CI["GitHub Actions — CI (implemented)"]
+    direction TB
+    C1["Checkout + Node 22 + npm cache"]:::ci
+    C2["Service container: postgres:17"]:::ci
+    C3["npm ci"]:::ci
+    C4["npm run typecheck<br/>(strict TS, all workspaces)"]:::ci
+    C5["npm test — 107 tests<br/>DB constraints, RLS, concurrency,<br/>HTTP, sockets, billing, calendar"]:::ci
+    C6["npm run build<br/>API bundle + SPA"]:::ci
+    C1 --> C2 --> C3 --> C4 --> C5 --> C6
+  end
+
+  subgraph CD["Deploy (documented, manual today)"]
+    direction TB
+    P1["docker build → ECR"]:::todo
+    P2["ECS one-off task:<br/>node apps/api/dist/migrate.js"]:::todo
+    P3["ECS service rolling update"]:::todo
+    P4["SPA → S3 + CloudFront invalidation"]:::todo
+    P1 --> P2 --> P3 --> P4
+  end
+
+  D1 --> G --> CI --> CD

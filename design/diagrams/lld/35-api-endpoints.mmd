@@ -1,0 +1,42 @@
+mindmap
+  root((/api))
+    public
+      GET /health
+      POST /webhooks/stripe
+      GET /integrations/google/callback
+    /auth - rate limited
+      POST /signup
+      POST /login
+      POST /refresh - cookie
+      POST /logout - cookie
+      GET /invitations/:token
+      POST /invitations/accept
+    any signed-in user
+      GET /me
+      GET /spaces
+      GET /plan-usage
+      GET /buildings/:id/schedule?date
+      GET /rooms/:id/bookings?from&to
+      GET /availability
+      GET /bookings/mine?when
+      POST /bookings
+      PATCH /bookings/:id - organizer or admin
+      DELETE /bookings/:id - organizer or admin
+      GET, POST connect, DELETE /integrations/google
+    admin only
+      Spaces
+        POST /buildings
+        PATCH, DELETE /buildings/:id
+        POST /buildings/:id/floors
+        PATCH, DELETE /floors/:id
+        POST /floors/:id/rooms
+        PATCH, DELETE /rooms/:id
+      Team
+        GET, POST /invitations
+        DELETE /invitations/:id
+        GET /members
+        PATCH /members/:id
+      Billing
+        GET /billing
+        POST /billing/checkout
+        POST /billing/portal

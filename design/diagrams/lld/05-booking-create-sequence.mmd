@@ -1,0 +1,38 @@
+sequenceDiagram
+  autonumber
+  actor U as Employee (SPA)
+  participant API as POST /api/bookings
+  participant PG as PostgreSQL (roomly_app, RLS)
+  participant T1 as trigger bookings_lock_room
+  participant X as EXCLUDE constraint
+  participant T2 as trigger enqueue_calendar_sync
+  participant BUS as Event bus
+  participant IO as Socket.io
+  participant WK as Calendar worker
+
+  U->>API: {roomId, title, start, end} + Bearer JWT
+  API->>API: Zod: ISO with offset, whole minutes, end > start, ≤ 12h
+  API->>API: start ≥ now − 5 min and ≤ now + 180 days
+  API->>PG: withTenant: SELECT room + floor + building (RLS)
+  alt room missing (other org) or inactive
+    API-->>U: 404 Room not found
+  end
+  API->>PG: INSERT INTO bookings (..., during = tstzrange(start, end, '[)'))
+  PG->>T1: BEFORE INSERT
+  T1->>PG: pg_advisory_xact_lock(hash(room_id))
+  Note over T1,PG: concurrent writers for this room queue here (no deadlock cycles)
+  PG->>X: index insert + overlap check vs confirmed rows
+  alt overlap exists
+    X-->>PG: ERROR 23P01 exclusion_violation
+    PG-->>API: ROLLBACK (no outbox row, no event)
+    API->>PG: new tx: SELECT conflicting bookings
+    API-->>U: 409 BOOKING_CONFLICT {conflicts:[start,end,title,organizer]}
+  else no overlap
+    PG->>T2: AFTER INSERT
+    T2->>PG: if google_connections has organizer → INSERT outbox (upsert)
+    API->>PG: COMMIT
+    API->>BUS: publishBookingChange(booking.created)
+    BUS->>IO: emit to room, building, organizer channels
+    API-->>U: 201 Booking
+    WK->>PG: later: claim outbox job (SKIP LOCKED)
+  end

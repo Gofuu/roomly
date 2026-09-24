@@ -1,0 +1,20 @@
+sequenceDiagram
+  autonumber
+  participant A1 as Admin 1: POST /floors/:id/rooms
+  participant DB as Postgres
+  participant A2 as Admin 2: POST /floors/:id/rooms
+
+  Note over A1,A2: Free plan (limit 3), org currently has 2 active rooms
+  A1->>DB: BEGIN, SELECT ... FROM organizations JOIN plans WHERE id = org FOR UPDATE OF o
+  DB-->>A1: row lock granted, room_limit = 3
+  A2->>DB: BEGIN, SELECT ... FOR UPDATE OF o
+  Note right of DB: Admin 2 WAITS on the org row lock
+  A1->>DB: SELECT count(*) FROM rooms WHERE is_active → 2
+  A1->>DB: 2 < 3 → INSERT rooms
+  A1->>DB: COMMIT (lock released)
+  DB-->>A2: lock granted
+  A2->>DB: SELECT count(*) → 3 (sees Admin 1's room)
+  A2->>A2: 3 ≥ 3 → throw 402 PLAN_LIMIT_REACHED
+  A2->>DB: ROLLBACK
+  Note over A1,A2: Test: 6 simultaneous creates at 2/3 → exactly one 201, five 402s
+  Note over A1,A2: Same lock also guards reactivating a room, and serializes with the Stripe webhook's plan change (an UPDATE of the same row)

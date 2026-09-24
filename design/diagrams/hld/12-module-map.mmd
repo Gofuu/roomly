@@ -1,0 +1,40 @@
+flowchart TB
+  classDef web fill:#e0f2fe,stroke:#0284c7,color:#0c4a6e
+  classDef api fill:#eef2ff,stroke:#6366f1,color:#1e1b4b
+  classDef shared fill:#f3e8ff,stroke:#9333ea,color:#3b0764
+  classDef db fill:#dcfce7,stroke:#16a34a,color:#14532d
+
+  subgraph WEB["apps/web — React SPA"]
+    direction LR
+    Wp["pages/<br/>Home timeline, Room calendar,<br/>My bookings, Settings,<br/>admin/Spaces, Team, Billing, auth/*"]:::web
+    Wl["lib/<br/>api (fetch + refresh), auth context,<br/>queries, realtime, time (luxon)"]:::web
+    Wc["components/<br/>BookingDialog, BuildingTimeline,<br/>Modal, LiveIndicators, ui"]:::web
+  end
+
+  SH["packages/shared<br/>Zod schemas + TypeScript types<br/>auth · spaces · bookings · billing · realtime"]:::shared
+
+  subgraph API["apps/api — Express + Socket.io"]
+    direction LR
+    Aauth["auth/<br/>password, tokens,<br/>service, routes, middleware"]:::api
+    Aspace["spaces/<br/>routes, plan-limits"]:::api
+    Abook["bookings/<br/>routes"]:::api
+    Ateam["team/<br/>invitations, members"]:::api
+    Abill["billing/<br/>gateway, routes, webhook"]:::api
+    Aint["integrations/<br/>google-client, google-routes,<br/>crypto, calendar-worker"]:::api
+    Art["realtime/<br/>bus, socket"]:::api
+    Adb["db/<br/>withTenant, withSystem,<br/>retry, types, migrate-cli"]:::api
+    Ahttp["http/<br/>errors, params, rate-limit"]:::api
+  end
+
+  subgraph DB["db/migrations (SQL)"]
+    M["001 schema · 002 RLS · 003 room lock · 004 billing<br/>005 outbox · 006 socket adapter · 007 system policies"]:::db
+  end
+
+  Wp --> Wl & Wc
+  Wl --> SH
+  Aauth & Aspace & Abook & Ateam & Abill & Aint --> Adb
+  Aauth & Aspace & Abook & Ateam & Abill & Aint --> Ahttp
+  Abook --> Art
+  Aint --> Art
+  API --> SH
+  Adb --> M

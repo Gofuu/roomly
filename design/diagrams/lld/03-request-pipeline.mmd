@@ -1,0 +1,28 @@
+flowchart TB
+  classDef mw fill:#eef2ff,stroke:#6366f1,color:#1e1b4b
+  classDef stop fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
+  classDef ok fill:#dcfce7,stroke:#16a34a,color:#14532d
+
+  IN["HTTP request"] --> H["helmet() — security headers<br/>x-powered-by disabled"]:::mw
+  H --> LOG["dev request logger (development only)"]:::mw
+  LOG --> CORS["cors({ origin: WEB_ORIGIN, credentials })"]:::mw
+  CORS --> WH{"path = /api/webhooks/stripe ?"}
+  WH -- yes --> RAW["express.raw() → verifyWebhook(HMAC)<br/>→ handleStripeEvent"]:::ok
+  WH -- no --> JSON["express.json({ limit: 100kb })"]:::mw
+  JSON --> CK["cookieParser()"]:::mw
+  CK --> P{"route"}
+  P -- "/api/health" --> HL["SELECT 1 → 200 / 503"]:::ok
+  P -- "/api/auth/*" --> RL["authRateLimit (per IP / minute)"]:::mw
+  RL --> AUTHR["signup · login · refresh* · logout* · invitations<br/>(*sameOriginOnly: Origin must equal WEB_ORIGIN)"]:::ok
+  P -- "/api/integrations/google/callback" --> GCB["OAuth callback (state JWT + nonce cookie)"]:::ok
+  P -- "everything else" --> RA["requireAuth<br/>Bearer JWT → req.auth {userId, orgId, role}"]:::mw
+  RA -- "missing / invalid / expired" --> E401["401 UNAUTHORIZED"]:::stop
+  RA --> ROUTER{"router"}
+  ROUTER -- "/invitations /members /billing<br/>POST/PATCH/DELETE spaces" --> RADM["requireAdmin"]:::mw
+  RADM -- "role ≠ admin" --> E403["403 FORBIDDEN"]:::stop
+  RADM --> VP
+  ROUTER -- "/me /spaces /bookings /availability<br/>/rooms/:id/bookings /integrations/google" --> VP["validateIdParams (:id must be UUID, else 404)"]:::mw
+  VP --> ZOD["Zod parse body / query → 400 VALIDATION_FAILED"]:::mw
+  ZOD --> TX["handler → withTenant(orgId, fn) / withSystem(fn)"]:::ok
+  TX --> RES["JSON response"]:::ok
+  TX -. "throws" .-> EH["errorHandler<br/>HttpError → its status · ZodError → 400<br/>pg 23P01/23505 → 409 · 23503 → 404 · 23514/22000/22P02 → 400<br/>body-parser 4xx passthrough · else 500"]:::stop

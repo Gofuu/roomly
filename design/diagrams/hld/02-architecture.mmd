@@ -1,0 +1,42 @@
+flowchart TB
+  classDef client fill:#e0f2fe,stroke:#0284c7,color:#0c4a6e
+  classDef svc fill:#eef2ff,stroke:#6366f1,color:#1e1b4b
+  classDef db fill:#dcfce7,stroke:#16a34a,color:#14532d
+  classDef ext fill:#fef3c7,stroke:#d97706,color:#78350f
+
+  subgraph Client["Browser"]
+    SPA["React 19 SPA (Vite)<br/>TanStack Query cache<br/>Socket.io client<br/>FullCalendar + timeline"]:::client
+  end
+
+  subgraph API["API instance (Node 20+, TypeScript) — scale horizontally"]
+    direction TB
+    HTTP["Express 5 REST API<br/>/api/auth /api/bookings /api/billing ..."]:::svc
+    WS["Socket.io server<br/>JWT handshake, channels, presence"]:::svc
+    BUS["In-process event bus<br/>(post-commit booking events)"]:::svc
+    HTTP --> BUS --> WS
+  end
+
+  subgraph BG["Background (same process today, separable)"]
+    WK["Calendar sync worker<br/>(outbox drainer)"]:::svc
+  end
+
+  subgraph PG["PostgreSQL 17"]
+    direction TB
+    T["Tenant tables + RLS<br/>exclusion constraint on bookings"]:::db
+    OB["calendar_sync_outbox<br/>(filled by trigger)"]:::db
+    NQ["LISTEN / NOTIFY<br/>Socket.io adapter channel"]:::db
+  end
+
+  Stripe["Stripe"]:::ext
+  Google["Google Calendar"]:::ext
+
+  SPA -- "REST + Bearer JWT<br/>refresh cookie on /api/auth" --> HTTP
+  SPA <-- "WebSocket" --> WS
+  HTTP -- "withTenant (app role, RLS)<br/>withSystem (system role)" --> T
+  T -- "AFTER trigger" --> OB
+  WK -- "claim with SKIP LOCKED" --> OB
+  WS <-- "cross-instance broadcasts" --> NQ
+  HTTP -- "Checkout / Portal" --> Stripe
+  Stripe -- "webhooks (raw body, HMAC)" --> HTTP
+  WK -- "upsert / delete events" --> Google
+  HTTP -- "OAuth code exchange" --> Google

@@ -1,0 +1,26 @@
+flowchart TB
+  classDef s fill:#eef2ff,stroke:#6366f1,color:#1e1b4b
+  classDef db fill:#dcfce7,stroke:#16a34a,color:#14532d
+  classDef c fill:#e0f2fe,stroke:#0284c7,color:#0c4a6e
+
+  R["Route handler<br/>(create / update / cancel)<br/>after withTenant COMMIT"]:::s
+  P["publishBookingChange({type, orgId, buildingId,<br/>roomId, bookingId, organizerId, actorId})"]:::s
+  B["bus.emit('booking', event)<br/>Node EventEmitter"]:::s
+  O["onBooking (only on the instance<br/>that handled the request)"]:::s
+  E["io.to(org:O:room:R)<br/>.to(org:O:building:B)<br/>.to(org:O:user:U)<br/>.emit('booking.changed', hint)"]:::s
+  LA["ClusterAdapter.broadcast<br/>① publish BROADCAST message<br/>② deliver to local sockets"]:::s
+  N[("SELECT pg_notify('socket.io#/', json)<br/>payload > 8 KB → socket_io_attachments row")]:::db
+  LB["Other instances' adapters<br/>(LISTEN 'socket.io#/')<br/>deliver to their local sockets"]:::s
+  C1["Viewer of the room"]:::c
+  C2["Viewer of the building timeline"]:::c
+  C3["Organizer (My bookings)"]:::c
+  F["Client: invalidateQueries(['bookings'])<br/>→ refetch visible views via REST<br/>→ toast if actorId ≠ me"]:::c
+
+  R --> P --> B --> O --> E --> LA
+  LA --> N --> LB
+  LA --> C1 & C2
+  LB --> C3
+  C1 & C2 & C3 --> F
+
+  NOTE["A socket in several matching channels<br/>receives the event ONCE (union of rooms).<br/>409 conflicts publish nothing (no commit)."]
+  E ~~~ NOTE

@@ -1,0 +1,26 @@
+sequenceDiagram
+  autonumber
+  actor U as User (SPA)
+  participant API as /api/integrations/google
+  participant GO as Google OAuth
+  participant DB as Postgres (withSystem)
+
+  U->>API: POST /connect (Bearer JWT)
+  API->>API: nonce = 16 random bytes
+  API->>API: state = JWT {sub: userId, org, nonce}, aud google-oauth, 10 min
+  API-->>U: Set-Cookie roomly_google_nonce (httpOnly, SameSite=Lax, Path=/api/integrations/google), {url}
+  U->>GO: consent screen (scopes openid email calendar.events, access_type offline, prompt consent)
+  GO-->>U: 302 redirect_uri?code=...&state=...
+  U->>API: GET /callback?code&state (top-level navigation, cookie sent, no Bearer header)
+  API->>API: clear nonce cookie, verify state JWT (signature, audience, expiry)
+  API->>API: timingSafeEqual(cookie nonce, state.nonce): proves the same browser started the flow
+  alt invalid state or nonce mismatch
+    API-->>U: 400 (try again)
+  end
+  API->>GO: POST oauth2.googleapis.com/token (code, client secret)
+  GO-->>API: refresh_token, id_token (email), scope
+  API->>DB: user still active in that org?
+  API->>DB: UPSERT google_connections (refresh_token_enc = AES-256-GCM(token))
+  API->>DB: backfill: INSERT outbox upsert jobs for user's upcoming confirmed bookings
+  API-->>U: 302 /settings?google=connected
+  Note over U,DB: Disconnect: DELETE /api/integrations/google → delete row (withSystem) → best-effort revoke at Google

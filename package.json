@@ -14,9 +14,11 @@
     "dev:web": "npm run dev -w @roomly/web",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json && npm run typecheck --workspaces --if-present",
-    "build": "npm run build -w @roomly/api && npm run build -w @roomly/web"
+    "build": "npm run build -w @roomly/api && npm run build -w @roomly/web",
+    "design:render": "node design/diagrams/render.mjs"
   },
   "devDependencies": {
+    "@mermaid-js/mermaid-cli": "^11.17.0",
     "@types/node": "^20.14.0",
     "@types/pg": "^8.11.10",
     "dotenv": "^16.4.5",

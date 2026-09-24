@@ -1,0 +1,22 @@
+flowchart LR
+  classDef p fill:#fef3c7,stroke:#d97706,color:#78350f,font-weight:bold
+  classDef l fill:#eef2ff,stroke:#6366f1,color:#1e1b4b,font-weight:bold
+  classDef d fill:#dcfce7,stroke:#16a34a,color:#14532d,font-weight:bold
+  classDef f fill:#fee2e2,stroke:#dc2626,color:#7f1d1d,font-weight:bold
+
+  P(["PENDING<br/><small>done_at NULL<br/>run_after ≤ now</small>"]):::p
+  B(["BLOCKED<br/><small>an earlier job for the<br/>same booking is pending</small>"]):::p
+  L(["LEASED<br/><small>run_after = now + 2 min<br/>attempts + 1</small>"]):::l
+  W(["WAITING (backoff)<br/><small>run_after = now + 10·2ⁿ⁻¹ s<br/>last_error set</small>"]):::p
+  D(["DONE<br/><small>done_at set<br/>last_error NULL</small>"]):::d
+  X(["DONE WITH ERROR<br/><small>not connected / revoked /<br/>gave up after 6 attempts</small>"]):::f
+
+  T["trigger INSERT"] --> P
+  T --> B
+  B -- "earlier job done" --> P
+  P -- "claimed (SKIP LOCKED)" --> L
+  L -- "Google call ok" --> D
+  L -- "HTTP error, attempts < 6" --> W
+  W -- "time passes" --> P
+  L -- "attempts ≥ 6 / no connection / revoked" --> X
+  L -- "worker crashed: lease expires" --> P

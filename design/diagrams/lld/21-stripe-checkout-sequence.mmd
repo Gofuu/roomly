@@ -1,0 +1,30 @@
+sequenceDiagram
+  autonumber
+  actor AD as Admin (SPA)
+  participant API as /api/billing
+  participant DB as Postgres
+  participant G as BillingGateway (Stripe SDK)
+  participant ST as Stripe
+  participant WH as /api/webhooks/stripe
+
+  AD->>API: POST /checkout {planId: pro}
+  API->>API: gateway configured? else 503 BILLING_NOT_CONFIGURED
+  API->>DB: withTenant: subscription live (active, trialing, past_due, unpaid, incomplete)?
+  alt already subscribed
+    API-->>AD: 409 ALREADY_SUBSCRIBED → use "Manage billing" (portal)
+  end
+  API->>DB: read org name, stripe_customer_id, admin email
+  opt no Stripe customer yet (network call OUTSIDE any transaction)
+    API->>G: customers.create({name, email, metadata.orgId})
+    G->>ST: POST /v1/customers
+    API->>DB: UPDATE organizations SET stripe_customer_id WHERE it IS NULL, then re-read
+    Note right of DB: concurrent checkouts: the first write wins, both use the stored id
+  end
+  API->>G: checkout.sessions.create(mode subscription, price, client_reference_id, success/cancel URLs)
+  G->>ST: POST /v1/checkout/sessions
+  API-->>AD: {url}
+  AD->>ST: redirect to hosted Checkout, pays
+  ST-->>AD: redirect /admin/billing?checkout=success (page polls GET /billing)
+  ST->>WH: customer.subscription.created (signed)
+  WH->>DB: plan_id = pro (see webhook flow)
+  AD->>API: GET /billing → plan pro, limit 25 → "You're on Pro"

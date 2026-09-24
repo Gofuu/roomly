@@ -1,0 +1,39 @@
+flowchart TB
+  classDef ok fill:#dcfce7,stroke:#16a34a,color:#14532d
+  classDef bad fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
+  classDef s fill:#eef2ff,stroke:#6366f1,color:#1e1b4b
+
+  S["PATCH /bookings/:id  {title?, start?, end?}<br/>or DELETE /bookings/:id"]:::s
+  V["Zod: start & end together, whole minutes, ≤ 12h"]:::s
+  L["withTenant → SELECT booking ... FOR UPDATE OF b<br/>(locks the row; RLS hides other orgs)"]:::s
+  F{"found and status = confirmed?"}
+  P{"caller is organizer or admin?"}
+  E{"booking already ended?"}
+  K{"DELETE?"}
+  C["UPDATE status = cancelled, cancelled_at = now()<br/>→ trigger: outbox 'delete' job"]:::ok
+  T{"time changed?"}
+  W{"new start ≥ now − 5 min?"}
+  U["UPDATE title / during, updated_at<br/>→ triggers: room lock + EXCLUDE check + outbox 'upsert'"]:::ok
+  X{"23P01?"}
+  R409["409 BOOKING_CONFLICT (+ conflicting bookings, excluding itself)"]:::bad
+  OK["200 / 204 → publish booking.updated / booking.cancelled after COMMIT"]:::ok
+  N404["404 Booking not found"]:::bad
+  N403["403 only organizer or admin"]:::bad
+  N400["400 past bookings can't be changed / can't start in the past"]:::bad
+
+  S --> V --> L --> F
+  F -- no --> N404
+  F -- yes --> P
+  P -- no --> N403
+  P -- yes --> E
+  E -- yes --> N400
+  E -- no --> K
+  K -- yes --> C --> OK
+  K -- no --> T
+  T -- no --> U
+  T -- yes --> W
+  W -- no --> N400
+  W -- yes --> U
+  U --> X
+  X -- yes --> R409
+  X -- no --> OK

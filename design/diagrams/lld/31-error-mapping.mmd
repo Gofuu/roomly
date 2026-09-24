@@ -1,0 +1,18 @@
+flowchart LR
+  classDef src fill:#f1f5f9,stroke:#64748b,color:#0f172a
+  classDef c4 fill:#fef3c7,stroke:#d97706,color:#78350f
+  classDef c5 fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
+
+  HE["HttpError(status, code)<br/>thrown by handlers"]:::src --> H1["its own status + code<br/>e.g. 402 PLAN_LIMIT_REACHED, 409 LAST_ADMIN,<br/>409 BOOKING_CONFLICT (+ details), 403 FORBIDDEN"]:::c4
+  ZE["ZodError"]:::src --> H2["400 VALIDATION_FAILED + fieldErrors"]:::c4
+  BJ["body-parser parse failure"]:::src --> H3["400 BAD_JSON"]:::c4
+  BL["body-parser 4xx (e.g. body > 100 kb)"]:::src --> H4["413 / other 4xx passthrough"]:::c4
+  P1["pg 23P01 exclusion_violation<br/>(not translated by route)"]:::src --> H5["409 CONFLICT"]:::c4
+  P2["pg 23505 unique_violation"]:::src --> H6["409 ALREADY_EXISTS<br/>(routes use NAME_TAKEN, EMAIL_TAKEN...)"]:::c4
+  P3["pg 23503 foreign_key_violation"]:::src --> H7["404 NOT_FOUND<br/>(cross-tenant reference or deleted parent)"]:::c4
+  P4["pg 23514 check / 22000 data / 22P02 syntax"]:::src --> H8["400 BAD_REQUEST"]:::c4
+  P5["pg 40P01 / 40001"]:::src --> H9["retried transparently by retryTransient (≤ 5 attempts)"]:::c4
+  UK["anything else"]:::src --> H10["500 INTERNAL<br/>(message hidden in production, logged)"]:::c5
+
+  FMT["Every error body: { error: { code, message, details? } }"]
+  H10 ~~~ FMT

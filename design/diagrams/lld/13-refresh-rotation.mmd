@@ -1,0 +1,42 @@
+flowchart TB
+  classDef ok fill:#dcfce7,stroke:#16a34a,color:#14532d
+  classDef bad fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
+  classDef s fill:#eef2ff,stroke:#6366f1,color:#1e1b4b
+
+  S["POST /api/auth/refresh<br/>cookie roomly_rt = raw token"]:::s
+  O{"Origin header present<br/>and ≠ WEB_ORIGIN?"}
+  C{"cookie present?"}
+  TX["withSystem BEGIN<br/>SELECT * FROM refresh_tokens<br/>WHERE token_hash = sha256(raw) FOR UPDATE"]:::s
+  F{"row found?"}
+  RV{"revoked_at set?<br/>(token already rotated)"}
+  RF["REUSE DETECTED<br/>UPDATE refresh_tokens SET revoked_at = now()<br/>WHERE family_id = row.family_id"]:::bad
+  EX{"expires_at < now?"}
+  US{"user is_active?"}
+  RF2["revoke whole family"]:::bad
+  NEW["issueSession(same family_id):<br/>INSERT new token row<br/>sign new 15-min JWT (fresh role/org from DB)"]:::ok
+  OLD["UPDATE old row SET revoked_at = now(), replaced_by = new.id"]:::ok
+  CM["COMMIT"]:::s
+  OUT{"outcome"}
+  OK200["200 {accessToken, user, org}<br/>Set-Cookie: new refresh token"]:::ok
+  E401["clear cookie → 401 REFRESH_INVALID / REUSED / EXPIRED / DISABLED"]:::bad
+  E403["403 cross-origin"]:::bad
+
+  S --> O
+  O -- yes --> E403
+  O -- no --> C
+  C -- no --> E401
+  C -- yes --> TX --> F
+  F -- no --> CM
+  F -- yes --> RV
+  RV -- yes --> RF --> CM
+  RV -- no --> EX
+  EX -- yes --> CM
+  EX -- no --> US
+  US -- no --> RF2 --> CM
+  US -- yes --> NEW --> OLD --> CM
+  CM --> OUT
+  OUT -- "issued" --> OK200
+  OUT -- "error recorded" --> E401
+
+  N["Errors are RETURNED from the transaction and thrown AFTER COMMIT,<br/>so the family revocation is never rolled back.<br/>FOR UPDATE: two simultaneous refreshes with one token → one wins, the other is treated as reuse."]
+  RF ~~~ N

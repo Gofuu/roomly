@@ -1,0 +1,29 @@
+sequenceDiagram
+  autonumber
+  participant H as Route handler
+  participant WT as withTenant(orgId, fn)
+  participant R as retryTransient
+  participant P as appPool (roomly_app)
+  participant PG as PostgreSQL
+
+  H->>WT: withTenant(req.auth.orgId, fn)
+  WT->>R: attempt 1
+  R->>P: borrow connection
+  P->>PG: BEGIN
+  R->>PG: SELECT set_config('app.org_id', orgId, true)
+  Note over PG: is_local = true: setting lives only until COMMIT or ROLLBACK
+  R->>PG: fn(tx) queries, e.g. SELECT * FROM rooms
+  PG->>PG: RLS appends WHERE org_id = current_org_id()
+  PG-->>R: only this tenant's rows
+  alt success
+    R->>PG: COMMIT
+    PG-->>P: connection clean (org id gone)
+    R-->>H: result
+  else 40P01 deadlock or 40001 serialization failure
+    R->>PG: ROLLBACK
+    R->>R: sleep random(0..20ms × attempt)
+    R->>P: attempt n+1 (max 5), fn re-runs from scratch
+  else any other error (23P01, 23505, HttpError...)
+    R->>PG: ROLLBACK
+    R-->>H: rethrow → caller maps to 409 / 404 / 400
+  end

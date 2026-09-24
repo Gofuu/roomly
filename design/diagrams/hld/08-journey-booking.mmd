@@ -1,0 +1,24 @@
+flowchart TB
+  classDef user fill:#e0f2fe,stroke:#0284c7,color:#0c4a6e
+  classDef sys fill:#eef2ff,stroke:#6366f1,color:#1e1b4b
+  classDef db fill:#dcfce7,stroke:#16a34a,color:#14532d
+  classDef bad fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
+  classDef ext fill:#fef3c7,stroke:#d97706,color:#78350f
+
+  U1["Employee opens 'Book a room'<br/>picks building + date, filters seats / amenities"]:::user
+  U2["Timeline shows rooms × hours in the<br/>building's local time; live badge + viewers"]:::sys
+  U3["Clicks a free half-hour slot<br/>(or drags on the room's week calendar)"]:::user
+  U4["Booking dialog: title, date, start, end"]:::user
+  U5["POST /api/bookings"]:::sys
+  U6{"Database: exclusion constraint<br/>overlapping confirmed booking<br/>in this room?"}:::db
+  U7["201 Created<br/>booking committed"]:::sys
+  U8["409 BOOKING_CONFLICT<br/>dialog lists who holds the slot"]:::bad
+  U9["Post-commit event → Socket.io<br/>every viewer's calendar refetches"]:::sys
+  U10["Outbox job (same transaction)<br/>→ worker → Google Calendar event"]:::ext
+  U11["Later: reschedule (same constraint)<br/>or cancel (frees slot, history kept)"]:::user
+
+  U1 --> U2 --> U3 --> U4 --> U5 --> U6
+  U6 -- "no overlap" --> U7 --> U9
+  U7 --> U10
+  U6 -- "overlap" --> U8 --> U4
+  U9 --> U11

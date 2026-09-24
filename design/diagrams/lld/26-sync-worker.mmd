@@ -1,0 +1,41 @@
+flowchart TB
+  classDef s fill:#eef2ff,stroke:#6366f1,color:#1e1b4b
+  classDef ok fill:#dcfce7,stroke:#16a34a,color:#14532d
+  classDef bad fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
+  classDef db fill:#dcfce7,stroke:#16a34a,color:#14532d
+
+  TICK["tick(): every 5 s, and 200 ms after any booking bus event<br/>(skips if a tick is already running)"]:::s
+  CLAIM["CLAIM (one short transaction):<br/>UPDATE outbox SET run_after = now() + 2 min, attempts + 1<br/>WHERE id IN (SELECT id WHERE done_at IS NULL AND run_after ≤ now()<br/>AND NOT EXISTS earlier pending job for same booking<br/>ORDER BY id LIMIT 10 FOR UPDATE SKIP LOCKED)<br/>RETURNING id, booking_id, user_id, attempts"]:::db
+  ANY{"jobs claimed?"}
+  IDLE["wait for next tick"]:::s
+  LOAD["for each job (in parallel):<br/>load google_connections + booking with room, floor,<br/>building (tz, address), organizer"]:::s
+  CON{"connection exists?"}
+  DONE1["finish: done_at = now(),<br/>last_error = 'not connected'"]:::ok
+  TOK["access token: cache per user,<br/>else refresh via Google (decrypt AES-GCM)"]:::s
+  REV{"invalid_grant (revoked)?"}
+  DROP["delete google_connections row<br/>finish with error"]:::bad
+  ST{"booking missing or cancelled?"}
+  DELE["DELETE event rb&lt;uuid-hex&gt;<br/>(404/410 = already gone = success)"]:::s
+  UPSE["PUT event rb&lt;uuid-hex&gt; (restores if cancelled)<br/>404 → POST insert with that id"]:::s
+  OK["finish: done_at = now()"]:::ok
+  FAIL{"attempts ≥ 6?"}
+  BACK["retry later: run_after = now() + 10 s × 2^(attempts−1)<br/>last_error = message"]:::bad
+  GIVE["finish: 'gave up: ...'"]:::bad
+
+  TICK --> CLAIM --> ANY
+  ANY -- no --> IDLE
+  ANY -- yes --> LOAD --> CON
+  CON -- no --> DONE1
+  CON -- yes --> TOK --> REV
+  REV -- yes --> DROP
+  REV -- no --> ST
+  ST -- yes --> DELE --> OK
+  ST -- no --> UPSE --> OK
+  UPSE -. "HTTP error" .-> FAIL
+  DELE -. "HTTP error" .-> FAIL
+  FAIL -- no --> BACK
+  FAIL -- yes --> GIVE
+  OK --> CLAIM
+
+  N["Crash mid-job? The lease (run_after = now + 2 min) expires and any worker re-claims it.<br/>Re-running is harmless: deterministic event ids + sync of CURRENT booking state."]
+  BACK ~~~ N
