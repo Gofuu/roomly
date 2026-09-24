@@ -8,6 +8,7 @@ import { AcceptInvitePage } from './pages/auth/AcceptInvitePage';
 import { HomePage } from './pages/HomePage';
 import { SpacesPage } from './pages/admin/SpacesPage';
 import { TeamPage } from './pages/admin/TeamPage';
+import { BillingPage } from './pages/admin/BillingPage';
 import { RoomPage } from './pages/RoomPage';
 import { MyBookingsPage } from './pages/MyBookingsPage';
 
@@ -52,6 +53,7 @@ export function App() {
           <Route element={<RequireAdmin />}>
             <Route path="/admin/spaces" element={<SpacesPage />} />
             <Route path="/admin/team" element={<TeamPage />} />
+            <Route path="/admin/billing" element={<BillingPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>

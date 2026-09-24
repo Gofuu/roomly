@@ -32,6 +32,15 @@ export const config = {
     refreshTokenTtlDays: Number(required('REFRESH_TOKEN_TTL_DAYS')),
     inviteTtlDays: Number(required('INVITE_TTL_DAYS')),
   },
+  stripe: {
+    secretKey: process.env.STRIPE_SECRET_KEY || null,
+    webhookSecret: process.env.STRIPE_WEBHOOK_SECRET || null,
+    /** plan id → Stripe price id */
+    prices: {
+      pro: process.env.STRIPE_PRICE_PRO || null,
+      enterprise: process.env.STRIPE_PRICE_ENTERPRISE || null,
+    } as Record<string, string | null>,
+  },
 };
 
 export const isProduction = config.env === 'production';

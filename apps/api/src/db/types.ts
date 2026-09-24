@@ -9,6 +9,8 @@ export type BookingStatus = 'confirmed' | 'cancelled';
 
 type Timestamp = ColumnType<Date, Date | string, Date | string>;
 type CreatedAt = ColumnType<Date, never, never>;
+/** A timestamp column with a database default: optional on insert. */
+type TimestampWithDefault = ColumnType<Date, Date | string | undefined, Date | string>;
 
 export interface PlansTable {
   id: string;
@@ -34,7 +36,14 @@ export interface SubscriptionsTable {
   status: string;
   current_period_end: Timestamp | null;
   cancel_at_period_end: Generated<boolean>;
-  updated_at: Generated<Timestamp>;
+  last_event_at: TimestampWithDefault;
+  updated_at: TimestampWithDefault;
+}
+
+export interface StripeEventsTable {
+  id: string;
+  type: string;
+  received_at: CreatedAt;
 }
 
 export interface UsersTable {
@@ -111,7 +120,7 @@ export interface BookingsTable {
   during: string;
   status: Generated<BookingStatus>;
   created_at: CreatedAt;
-  updated_at: Generated<Timestamp>;
+  updated_at: TimestampWithDefault;
   cancelled_at: Timestamp | null;
 }
 
@@ -126,4 +135,5 @@ export interface Database {
   floors: FloorsTable;
   rooms: RoomsTable;
   bookings: BookingsTable;
+  stripe_events: StripeEventsTable;
 }

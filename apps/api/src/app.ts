@@ -11,6 +11,8 @@ import { invitationsRouter } from './team/invitations.js';
 import { membersRouter } from './team/members.js';
 import { spacesRouter } from './spaces/routes.js';
 import { bookingsRouter } from './bookings/routes.js';
+import { billingRouter } from './billing/routes.js';
+import { stripeWebhookRouter } from './billing/webhook.js';
 import { errorHandler, notFound, notFoundHandler } from './http/errors.js';
 
 export function createApp() {
@@ -20,6 +22,8 @@ export function createApp() {
   app.use(helmet());
   // In dev the Vite proxy makes everything same-origin; CORS covers a separately hosted frontend.
   app.use(cors({ origin: config.webOrigin, credentials: true }));
+  // Before express.json(): the webhook signature is computed over the raw body.
+  app.use('/api/webhooks/stripe', stripeWebhookRouter);
   app.use(express.json({ limit: '100kb' }));
   app.use(cookieParser());
 
@@ -58,6 +62,7 @@ export function createApp() {
   api.use('/members', membersRouter);
   api.use(spacesRouter);
   api.use(bookingsRouter);
+  api.use('/billing', billingRouter);
 
   api.use(notFoundHandler);
   app.use(errorHandler);
