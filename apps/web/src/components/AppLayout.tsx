@@ -9,7 +9,7 @@ function NavItem({ to, children }: { to: string; children: string }) {
       to={to}
       end={to === '/'}
       className={({ isActive }) =>
-        cx('rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+        cx('whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
           isActive ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900')
       }
     >
@@ -28,7 +28,7 @@ export function AppLayout() {
       <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-7xl items-center gap-6 px-4 sm:px-6">
           <Logo />
-          <nav className="flex flex-1 items-center gap-1 overflow-x-auto">
+          <nav className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none]">
             <NavItem to="/">Book a room</NavItem>
             <NavItem to="/bookings">My bookings</NavItem>
             {isAdmin && (
@@ -41,7 +41,7 @@ export function AppLayout() {
             )}
           </nav>
           <div className="flex items-center gap-3">
-            <div className="hidden text-right sm:block">
+            <div className="hidden text-right lg:block">
               <div className="text-sm font-medium text-slate-900">{user.name}</div>
               <div className="flex items-center justify-end gap-1.5 text-xs text-slate-500">
                 {org.name}

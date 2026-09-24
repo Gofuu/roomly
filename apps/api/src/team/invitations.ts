@@ -6,10 +6,12 @@ import { withTenant } from '../db/index.js';
 import { auth, requireAdmin } from '../auth/middleware.js';
 import { generateOpaqueToken, hashToken } from '../auth/tokens.js';
 import { conflict, notFound } from '../http/errors.js';
+import { validateIdParams } from '../http/params.js';
 
 /** Admin-only invitation management. Mounted behind requireAuth. */
 export const invitationsRouter = Router();
 invitationsRouter.use(requireAdmin);
+validateIdParams(invitationsRouter, 'id');
 
 invitationsRouter.get('/', async (req, res) => {
   const { orgId } = auth(req);

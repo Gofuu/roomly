@@ -6,6 +6,8 @@ import { LoginPage } from './pages/auth/LoginPage';
 import { SignupPage } from './pages/auth/SignupPage';
 import { AcceptInvitePage } from './pages/auth/AcceptInvitePage';
 import { HomePage } from './pages/HomePage';
+import { SpacesPage } from './pages/admin/SpacesPage';
+import { TeamPage } from './pages/admin/TeamPage';
 
 function FullPageSpinner() {
   return <div className="flex min-h-screen items-center justify-center"><Spinner /></div>;
@@ -44,7 +46,8 @@ export function App() {
         <Route element={<AppLayout />}>
           <Route index element={<HomePage />} />
           <Route element={<RequireAdmin />}>
-            <Route path="/admin/*" element={<HomePage />} />
+            <Route path="/admin/spaces" element={<SpacesPage />} />
+            <Route path="/admin/team" element={<TeamPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>

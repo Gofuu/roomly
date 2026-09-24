@@ -8,6 +8,8 @@ import { withTenant } from './db/index.js';
 import { auth, requireAuth } from './auth/middleware.js';
 import { authRouter } from './auth/routes.js';
 import { invitationsRouter } from './team/invitations.js';
+import { membersRouter } from './team/members.js';
+import { spacesRouter } from './spaces/routes.js';
 import { errorHandler, notFound, notFoundHandler } from './http/errors.js';
 
 export function createApp() {
@@ -52,6 +54,8 @@ export function createApp() {
   });
 
   api.use('/invitations', invitationsRouter);
+  api.use('/members', membersRouter);
+  api.use(spacesRouter);
 
   api.use(notFoundHandler);
   app.use(errorHandler);
