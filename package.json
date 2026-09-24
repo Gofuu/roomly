@@ -1,0 +1,28 @@
+{
+  "name": "roomly",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "db:start": "tsx scripts/db.ts start",
+    "db:reset": "tsx scripts/db.ts reset",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "dev:api": "npm run dev -w @roomly/api",
+    "dev:web": "npm run dev -w @roomly/web",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json && npm run typecheck --workspaces --if-present"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/pg": "^8.11.10",
+    "dotenv": "^16.4.5",
+    "embedded-postgres": "17.10.0-beta.17",
+    "pg": "^8.13.1",
+    "tsx": "^4.19.2",
+    "typescript": "~5.6.3",
+    "vitest": "^3.2.7"
+  }
+}
