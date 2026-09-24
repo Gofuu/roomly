@@ -9,14 +9,21 @@
     "typecheck": "tsc -p ."
   },
   "dependencies": {
+    "@fullcalendar/core": "^6.1.21",
+    "@fullcalendar/interaction": "^6.1.21",
+    "@fullcalendar/luxon3": "^6.1.21",
+    "@fullcalendar/react": "^6.1.21",
+    "@fullcalendar/timegrid": "^6.1.21",
     "@roomly/shared": "*",
     "@tanstack/react-query": "^5.62.0",
+    "luxon": "^3.7.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.1.0"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.0.0",
+    "@types/luxon": "^3.7.5",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.4",

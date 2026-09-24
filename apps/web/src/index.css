@@ -1,1 +1,22 @@
 @import "tailwindcss";
+
+/* FullCalendar themed to match the app (via its CSS variables). */
+.fc {
+  --fc-border-color: #e2e8f0;
+  --fc-today-bg-color: color-mix(in oklab, #eef2ff 70%, transparent);
+  --fc-now-indicator-color: #ef4444;
+  --fc-button-bg-color: white;
+  --fc-button-text-color: #334155;
+  --fc-button-border-color: #cbd5e1;
+  --fc-button-hover-bg-color: #f8fafc;
+  --fc-button-hover-border-color: #cbd5e1;
+  --fc-button-active-bg-color: #eef2ff;
+  --fc-button-active-border-color: #c7d2fe;
+  --fc-highlight-color: color-mix(in oklab, #c7d2fe 50%, transparent);
+  font-size: 0.8125rem;
+}
+.fc .fc-button { font-weight: 500; text-transform: capitalize; box-shadow: none !important; }
+.fc .fc-button-primary:not(:disabled).fc-button-active { color: #4338ca; }
+.fc .fc-toolbar-title { font-size: 1.05rem; font-weight: 600; color: #0f172a; }
+.fc .fc-col-header-cell-cushion { color: #475569; font-weight: 500; }
+.fc .fc-timegrid-event { border-radius: 6px; padding: 1px 3px; }
