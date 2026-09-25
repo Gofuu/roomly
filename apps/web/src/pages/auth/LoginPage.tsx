@@ -50,7 +50,7 @@ export function LoginPage() {
         <Button type="submit" loading={busy} className="w-full">Sign in</Button>
       </form>
 
-      {import.meta.env.DEV && (
+      {(import.meta.env.DEV || import.meta.env.VITE_SHOW_DEMO_ACCOUNTS === 'true') && (
         <div className="mt-6 border-t border-slate-100 pt-4">
           <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-400">Demo accounts (password: Password123!)</p>
           <div className="flex flex-wrap gap-1.5">

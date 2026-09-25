@@ -50,6 +50,12 @@ export const config = {
   rateLimit: {
     authPerMinute: Number(process.env.RATE_LIMIT_AUTH_PER_MINUTE ?? 20),
   },
+  /**
+   * How many proxies sit in front of the API and append X-Forwarded-For. Express
+   * uses it to find the real client IP (for rate limiting). CloudFront → EC2 = 1;
+   * CloudFront → ALB → ECS = 2. Too high lets clients spoof their IP.
+   */
+  trustProxyHops: Number(process.env.TRUST_PROXY_HOPS ?? 1),
 };
 
 if (config.tokenEncryptionKey.length !== 32) throw new Error('TOKEN_ENCRYPTION_KEY must be 32 bytes, base64-encoded');

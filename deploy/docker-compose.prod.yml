@@ -1,0 +1,52 @@
+# Production stack on the single EC2 host (see docs/DEPLOYMENT.md).
+# Values come from /opt/roomly/.env, written by deploy.sh from SSM Parameter Store.
+name: roomly
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${PG_SUPERUSER}
+      POSTGRES_PASSWORD: ${PG_SUPERUSER_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    # Sized for a 1–2 GB instance; the API needs ~30 connections (pools + socket adapter).
+    command: ["postgres", "-c", "shared_buffers=64MB", "-c", "max_connections=60"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # One-shot: creates/updates the two login roles and applies pending migrations.
+  migrate:
+    image: ${API_IMAGE}
+    env_file: .env
+    environment:
+      PGHOST: postgres
+      PGPORT: "5432"
+    command: ["node", "apps/api/dist/migrate.js"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    image: ${API_IMAGE}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PGHOST: postgres
+      PGPORT: "5432"
+      API_PORT: "4000"
+    # Only CloudFront can reach port 80 (security group); the host has no other listeners.
+    ports:
+      - "80:4000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  pgdata:

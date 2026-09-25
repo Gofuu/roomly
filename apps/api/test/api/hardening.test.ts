@@ -3,7 +3,7 @@ import request from 'supertest';
 import { afterAll, describe, expect, it } from 'vitest';
 import { closeDb } from '../../src/db/index.js';
 import { authRateLimit } from '../../src/http/rate-limit.js';
-import { api } from '../helpers/api.js';
+import { api, app as roomlyApp } from '../helpers/api.js';
 
 afterAll(closeDb);
 
@@ -16,6 +16,17 @@ describe('hardening', () => {
     const limited = await request(app).post('/login');
     expect(limited.body.error.code).toBe('RATE_LIMITED');
     expect(limited.headers).toHaveProperty('ratelimit-policy');
+  });
+
+  it('uses the real client IP behind one proxy hop, so spoofed X-Forwarded-For entries are ignored', async () => {
+    expect(roomlyApp.get('trust proxy')).toBe(1);
+    const app = express().set('trust proxy', 1).use(authRateLimit(1)).post('/login', (_req, res) => { res.json({ ok: true }); });
+    // CloudFront appends the real client IP as the LAST entry; anything before it is client-controlled.
+    const as = (xff: string) => request(app).post('/login').set('X-Forwarded-For', xff);
+    expect((await as('1.1.1.1')).status).toBe(200);
+    expect((await as('1.1.1.1')).status).toBe(429);
+    expect((await as('9.9.9.9, 1.1.1.1')).status).toBe(429); // spoofed prefix doesn't help
+    expect((await as('2.2.2.2')).status).toBe(200); // a different client has its own budget
   });
 
   it('health check reports database connectivity', async () => {

@@ -36,3 +36,35 @@ jobs:
       # .env.example supplies every setting the tests need; Stripe and Google are stubbed.
       - run: npm test
       - run: npm run build
+
+  # Builds the production API image natively on ARM (the EC2 host is Graviton/arm64).
+  # Every push proves the Dockerfile builds; pushes to main also publish it to GHCR
+  # tagged with the commit sha, which the Deploy workflow then rolls out.
+  image:
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Log in to GitHub Container Registry
+        if: github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Image name (GHCR requires lowercase)
+        id: meta
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/roomly-api" >> "$GITHUB_OUTPUT"
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/arm64
+          push: ${{ github.ref == 'refs/heads/main' }}
+          tags: |
+            ${{ steps.meta.outputs.name }}:${{ github.sha }}
+            ${{ steps.meta.outputs.name }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

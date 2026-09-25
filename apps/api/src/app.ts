@@ -19,7 +19,7 @@ import { errorHandler, notFound, notFoundHandler } from './http/errors.js';
 export function createApp() {
   const app = express();
   app.disable('x-powered-by');
-  app.set('trust proxy', 1);
+  app.set('trust proxy', config.trustProxyHops);
   app.use(helmet());
   if (config.env === 'development') {
     // Minimal request log for local development.

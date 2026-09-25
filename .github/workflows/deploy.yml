@@ -1,0 +1,107 @@
+name: Deploy
+
+# Rolls out to the budget AWS stack (infra/roomly-stack.yaml):
+#   - automatically after CI succeeds on main (CI has already pushed the image), or
+#   - manually from the Actions tab.
+# Uses GitHub OIDC to assume an AWS role, so there are no long-lived AWS keys anywhere.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # Skip until the AWS stack exists and its outputs are saved as repository variables.
+    if: vars.AWS_ROLE_ARN != '' && (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      S3_BUCKET: ${{ vars.S3_BUCKET }}
+      DISTRIBUTION_ID: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}
+      INSTANCE_ID: ${{ vars.INSTANCE_ID }}
+      SITE_URL: ${{ vars.SITE_URL }}
+      SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+      PUPPETEER_SKIP_DOWNLOAD: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SHA }}
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Ensure secrets exist in SSM (generated once, never printed)
+        run: |
+          ensure() {
+            if ! aws ssm get-parameter --name "/roomly/$1" > /dev/null 2>&1; then
+              aws ssm put-parameter --name "/roomly/$1" --type SecureString --value "$2" > /dev/null
+              echo "created /roomly/$1"
+            fi
+          }
+          ensure JWT_SECRET "$(openssl rand -base64 48 | tr -d '\n')"
+          ensure TOKEN_ENCRYPTION_KEY "$(openssl rand -base64 32 | tr -d '\n')"
+          ensure PG_SUPERUSER_PASSWORD "$(openssl rand -hex 24)"
+          ensure APP_DB_PASSWORD "$(openssl rand -hex 24)"
+          ensure SYSTEM_DB_PASSWORD "$(openssl rand -hex 24)"
+          aws ssm put-parameter --name /roomly/WEB_ORIGIN --type String --value "$SITE_URL" --overwrite > /dev/null
+
+      - name: Check the image for this commit exists
+        run: docker manifest inspect "ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/roomly-api:${SHA}" > /dev/null
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build the web app (with demo-account buttons)
+        run: npm run build -w @roomly/web
+        env:
+          VITE_SHOW_DEMO_ACCOUNTS: 'true'
+
+      - name: Upload site and host scripts to S3
+        run: |
+          # Hashed assets can be cached forever; index.html must always be revalidated.
+          aws s3 sync apps/web/dist/assets "s3://$S3_BUCKET/site/assets" --delete \
+            --cache-control "public,max-age=31536000,immutable"
+          aws s3 cp apps/web/dist/index.html "s3://$S3_BUCKET/site/index.html" --cache-control "no-cache"
+          aws s3 sync deploy "s3://$S3_BUCKET/deploy" --delete
+
+      - name: Roll out on the server (SSM Run Command)
+        run: |
+          CMD_ID=$(aws ssm send-command --instance-ids "$INSTANCE_ID" \
+            --document-name AWS-RunShellScript \
+            --comment "roomly deploy $SHA" \
+            --parameters "commands=[\"mkdir -p /opt/roomly && aws s3 sync s3://$S3_BUCKET/deploy /opt/roomly --region $AWS_REGION && bash /opt/roomly/deploy.sh $SHA $S3_BUCKET $AWS_REGION\"],executionTimeout=[\"900\"]" \
+            --query Command.CommandId --output text)
+          echo "SSM command $CMD_ID"
+          for i in $(seq 1 90); do
+            STATUS=$(aws ssm get-command-invocation --command-id "$CMD_ID" --instance-id "$INSTANCE_ID" --query Status --output text 2>/dev/null || echo Pending)
+            case "$STATUS" in Success|Failed|Cancelled|TimedOut) break;; esac
+            sleep 10
+          done
+          aws ssm get-command-invocation --command-id "$CMD_ID" --instance-id "$INSTANCE_ID" \
+            --query '[StandardOutputContent,StandardErrorContent]' --output text
+          test "$STATUS" = Success
+
+      - name: Invalidate CloudFront (index.html)
+        run: aws cloudfront create-invalidation --distribution-id "$DISTRIBUTION_ID" --paths /index.html / > /dev/null
+
+      - name: Smoke test through CloudFront
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS "$SITE_URL/api/health"; then echo; exit 0; fi
+            sleep 5
+          done
+          exit 1

@@ -2,7 +2,7 @@
 
 A SaaS product for booking meeting rooms, in the style of Robin and Condeco. A company signs up, its admins model their buildings, floors and rooms, and employees book rooms on a live calendar. Many companies share one deployment with fully isolated data. Each company pays for a plan through Stripe, and bookings appear on each employee's Google Calendar.
 
-**Stack:** TypeScript end to end. Express 5, PostgreSQL 17, Kysely, Socket.io, React 19 with Vite, TanStack Query, Tailwind CSS, Stripe, Google Calendar API. **107 tests** run against a real Postgres.
+**Stack:** TypeScript end to end. Express 5, PostgreSQL 17, Kysely, Socket.io, React 19 with Vite, TanStack Query, Tailwind CSS, Stripe, Google Calendar API. **109 tests** run against a real Postgres.
 
 ```mermaid
 flowchart LR
@@ -147,7 +147,7 @@ To see live updates, open the same building in two browsers, one signed in as Ra
 **Stripe and Google** are optional. Without keys, their pages explain what's missing. See `.env.example` for the variables. For webhooks locally: `stripe listen --forward-to localhost:5173/api/webhooks/stripe`.
 
 ```bash
-npm test                  # 107 tests; boots Postgres if needed, uses a throwaway database
+npm test                  # 109 tests; boots Postgres if needed, uses a throwaway database
 npm run typecheck
 npm run build             # API bundle (apps/api/dist) + static SPA (apps/web/dist)
 ```
@@ -172,4 +172,11 @@ packages/shared/        Zod schemas + types shared by API and web
 
 ## Deployment
 
-See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md): AWS with ECS Fargate for the API, RDS PostgreSQL, and S3 + CloudFront for the SPA.
+A budget AWS setup (about US$10–15/month):
+- **Server:** one ARM EC2 host running Postgres and the API with Docker Compose.
+- **Front door:** CloudFront for HTTPS and WebSockets, with the SPA served from S3.
+- **Infrastructure:** defined in CloudFormation (`infra/roomly-stack.yaml`).
+- **Deploys:** keyless GitHub Actions (OIDC) roll out every green push to `main`.
+- **Upkeep:** nightly backups to S3 and a nightly reset of the demo companies.
+
+See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md), which also covers the managed scale-up path (RDS + ECS Fargate).

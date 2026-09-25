@@ -1,0 +1,9 @@
+[Unit]
+Description=Run Roomly backup nightly
+
+[Timer]
+OnCalendar=*-*-* 02:00:00 Asia/Kolkata
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,7 @@
+[Unit]
+Description=Roomly nightly database backup to S3
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /opt/roomly/backup.sh

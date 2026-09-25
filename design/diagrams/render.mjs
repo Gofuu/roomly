@@ -15,9 +15,15 @@ for (const level of ['hld', 'lld']) {
   mkdirSync(outDir, { recursive: true });
   for (const file of readdirSync(join(here, level)).filter((f) => f.endsWith('.mmd') && `${level}/${f}`.includes(filter)).sort()) {
     const out = join(outDir, file.replace(/\.mmd$/, '.png'));
+    const render = (browserConfig) => execFileSync('npx', ['mmdc', '-q', '-p', join(here, browserConfig), '-c', join(here, 'mermaid.json'),
+      '-i', join(here, level, file), '-o', out, '-s', '2', '-b', 'white', '-w', '1400'], { stdio: 'pipe', shell: true });
     try {
-      execFileSync('npx', ['mmdc', '-q', '-p', join(here, 'puppeteer.json'), '-c', join(here, 'mermaid.json'),
-        '-i', join(here, level, file), '-o', out, '-s', '2', '-b', 'white', '-w', '1400'], { stdio: 'pipe', shell: true });
+      try {
+        render('puppeteer.json'); // Edge (ships with Windows)
+      } catch (err) {
+        if (!String(err.stderr).includes('Failed to launch the browser')) throw err;
+        render('puppeteer-chrome.json'); // fall back to Chrome when Edge can't start
+      }
       console.log(`ok   ${level}/${file}`);
     } catch (err) {
       failed++;

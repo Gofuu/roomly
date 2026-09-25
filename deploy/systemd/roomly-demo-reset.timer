@@ -1,0 +1,9 @@
+[Unit]
+Description=Reset the Roomly demo companies nightly (after the backup)
+
+[Timer]
+OnCalendar=*-*-* 02:30:00 Asia/Kolkata
+Persistent=true
+
+[Install]
+WantedBy=timers.target

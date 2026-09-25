@@ -1,0 +1,7 @@
+[Unit]
+Description=Reset the Roomly demo companies
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /opt/roomly/reset-demo.sh

@@ -550,6 +550,7 @@ Every booking view shares the `['bookings']` prefix, so a single `invalidateQuer
 | GOOGLE_REDIRECT_URI | http://localhost:5173/api/integrations/google/callback | |
 | TOKEN_ENCRYPTION_KEY | dev placeholder (refused in prod) | AES-256-GCM key, 32 bytes base64 |
 | RATE_LIMIT_AUTH_PER_MINUTE | 20 | per IP |
+| TRUST_PROXY_HOPS | 1 | proxies appending X-Forwarded-For (CloudFront → EC2 = 1) |
 | MIGRATIONS_DIR | `<repo>/db/migrations` | override inside the container |
 | PGSSLMODE (+ NODE_EXTRA_CA_CERTS) | – | TLS to RDS |
 
@@ -590,5 +591,6 @@ Every booking view shares the `['bookings']` prefix, so a single `invalidateQuer
 | api/realtime | 8 | handshake, expiry disconnect, channel isolation, fan-out, no event on 409, personal channel, two-instance adapter, presence |
 | api/billing | 13 | signature, idempotency, ordering, grace, replaced subscriptions, downgrade, webhook-only plan changes, checkout/portal |
 | api/calendar-sync | 13 | encryption, OAuth state/nonce, backfill, trigger coverage, retries, revocation, ordering, SKIP LOCKED |
-| api/hardening | 4 | rate limit, health, headers, 413/400 |
-| **Total** | **107** | also run in GitHub Actions against `postgres:17` |
+| db/demo-seed | 1 | nightly demo reset restores the demo companies and never touches visitor orgs |
+| api/hardening | 5 | rate limit, real client IP behind one proxy hop, health, headers, 413/400 |
+| **Total** | **109** | also run in GitHub Actions against `postgres:17` |

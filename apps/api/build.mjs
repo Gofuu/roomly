@@ -7,7 +7,7 @@ const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 
 const external = Object.keys(pkg.dependencies).filter((d) => !d.startsWith('@roomly/'));
 
 await build({
-  entryPoints: { server: 'src/index.ts', migrate: 'src/db/migrate-cli.ts' },
+  entryPoints: { server: 'src/index.ts', migrate: 'src/db/migrate-cli.ts', seed: 'src/db/seed-cli.ts' },
   outdir: 'dist',
   bundle: true,
   platform: 'node',

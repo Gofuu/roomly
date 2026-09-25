@@ -6,38 +6,44 @@ flowchart TB
   classDef sec fill:#fce7f3,stroke:#db2777,color:#831843
 
   User["Users' browsers"]:::edge
-  CF["Amazon CloudFront<br/>one domain, HTTPS<br/>behaviours by path"]:::edge
-  S3["S3 bucket<br/>apps/web/dist (static SPA)"]:::edge
+  CF["Amazon CloudFront<br/>https://dxxxx.cloudfront.net<br/>free TLS, HTTP/2+3, WebSockets"]:::edge
 
-  subgraph VPC["VPC"]
-    subgraph Public["Public subnets"]
-      ALB["Application Load Balancer<br/>health check: /api/health"]:::svc
-    end
-    subgraph Private["Private subnets"]
-      subgraph ECS["ECS Fargate service (2+ tasks)"]
-        T1["API task 1<br/>server.js"]:::svc
-        T2["API task 2<br/>server.js"]:::svc
-      end
-      MIG["One-off ECS task<br/>migrate.js (per deploy)"]:::svc
-      RDS[("RDS PostgreSQL 17<br/>Multi-AZ, backups")]:::db
+  subgraph S3B["S3 bucket (private, encrypted)"]
+    SITE["site/ — SPA build<br/>(Origin Access Control;<br/>CloudFront Function maps routes → index.html)"]:::edge
+    DEP["deploy/ — compose file + host scripts"]:::sec
+    BAK["backups/ — nightly pg_dump<br/>(expires after 7 days)"]:::db
+  end
+
+  subgraph REGION["ap-south-1 (Mumbai) — default VPC"]
+    SG["Security group<br/>:80 from CloudFront prefix list ONLY<br/>no SSH port"]:::sec
+    subgraph EC2["EC2 t4g.micro (Graviton, AL2023) + Elastic IP + 1 GB swap"]
+      API["api container<br/>Express + Socket.io + worker<br/>80 → 4000"]:::svc
+      MIG["migrate container<br/>(one-shot per deploy)"]:::svc
+      PG[("postgres:17 container<br/>EBS gp3 20 GB volume")]:::db
+      TMR["systemd timers<br/>02:00 backup · 02:30 demo reset"]:::svc
     end
   end
 
-  SM["Secrets Manager / SSM<br/>JWT_SECRET, TOKEN_ENCRYPTION_KEY,<br/>DB passwords, Stripe, Google"]:::sec
-  ECR["ECR<br/>roomly-api image"]:::sec
+  SSM["SSM Parameter Store /roomly/*<br/>secrets generated on first deploy"]:::sec
+  GH["GitHub Actions<br/>CI: tests + arm64 image → GHCR<br/>Deploy: OIDC role (no stored keys)"]:::sec
+  GHCR["ghcr.io/gofuu/roomly-api:&lt;sha&gt;"]:::sec
   Stripe["Stripe"]:::ext
   Google["Google APIs"]:::ext
 
   User --> CF
-  CF -- "/*" --> S3
-  CF -- "/api/*  /socket.io/*" --> ALB
-  ALB --> T1 & T2
-  T1 & T2 --> RDS
-  MIG --> RDS
-  T1 <-. "LISTEN/NOTIFY via RDS" .-> T2
-  SM -. "env vars" .-> ECS
-  SM -. "env vars" .-> MIG
-  ECR -. "image" .-> ECS
-  ECR -. "image" .-> MIG
-  T1 & T2 --> Stripe & Google
-  Stripe -- "webhook → /api/webhooks/stripe" --> CF
+  CF -- "/*" --> SITE
+  CF -- "/api/*  /socket.io/*  (no caching)" --> SG --> API
+  API --> PG
+  MIG --> PG
+  TMR --> PG
+  TMR --> BAK
+  API --> Stripe & Google
+  Stripe -- "webhooks" --> CF
+
+  GH -- "s3 sync" --> SITE
+  GH -- "s3 sync" --> DEP
+  GH -- "SSM Run Command → deploy.sh" --> EC2
+  GH -- "push image" --> GHCR
+  GHCR -. "docker pull" .-> EC2
+  SSM -. "deploy.sh writes root-only .env" .-> EC2
+  DEP -. "copied to /opt/roomly" .-> EC2
