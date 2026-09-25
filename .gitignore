@@ -4,3 +4,6 @@ dist/
 .env
 *.log
 coverage/
+
+# Local Claude Code config
+.claude/
