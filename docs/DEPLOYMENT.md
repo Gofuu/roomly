@@ -53,7 +53,7 @@ Nightly: pg_dump → S3 backups/ (kept 7 days), then reset of the demo companies
    | `INSTANCE_ID` | InstanceId |
    | `SITE_URL` | SiteUrl |
 
-2. Make the container image pullable by the server. On your GitHub profile, open **Packages → roomly-api → Package settings → Change visibility → Public**. The image contains no secrets.
+2. The server pulls `ghcr.io/gofuu/roomly-api` without credentials. Because the repository is public, the package is already public; nothing to do. (If the repo is ever made private, set the package to Public in **Packages → roomly-api → Package settings**; the image contains no secrets.)
 
 ### 4. First deploy
 **Actions → Deploy → Run workflow** (on `main`). The first run:
