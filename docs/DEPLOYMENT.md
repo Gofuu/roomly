@@ -36,10 +36,11 @@ Nightly: pg_dump → S3 backups/ (kept 7 days), then reset of the demo companies
 5. Switch the console region (top right) to **Asia Pacific (Mumbai) ap-south-1**.
 
 ### 2. Create the infrastructure
-1. **CloudFormation → Create stack → With new resources → Upload a template file** → `infra/roomly-stack.yaml`.
-2. Stack name `roomly`. Keep the defaults (`t4g.micro`, repo `Gofuu/roomly`, create OIDC provider `true`).
-3. Tick "I acknowledge that AWS CloudFormation might create IAM resources" → **Submit**.
-4. Wait for `CREATE_COMPLETE` (~5–10 minutes; CloudFront is the slow part), then open the **Outputs** tab.
+1. Find CloudFront's IP list ID: **VPC console → Managed prefix lists** → search `cloudfront` → copy the **Prefix list ID** (`pl-…`) of `com.amazonaws.global.cloudfront.origin-facing`.
+2. **CloudFormation → Create stack → With new resources → Upload a template file** → `infra/roomly-stack.yaml`.
+3. Stack name `roomly`. Paste the ID into **CloudFrontPrefixListId**. Keep the other defaults (`t4g.micro`, repo `Gofuu/roomly`, create OIDC provider `true`).
+4. Tick "I acknowledge that AWS CloudFormation might create IAM resources" → **Submit**.
+5. Wait for `CREATE_COMPLETE` (~5–10 minutes; CloudFront is the slow part), then open the **Outputs** tab.
 
 ### 3. Connect GitHub
 1. In the repo on GitHub, go to **Settings → Secrets and variables → Actions → Variables**. Add each stack output as a variable:

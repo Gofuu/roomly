@@ -19,6 +19,14 @@ Parameters:
     Default: 'true'
     AllowedValues: ['true', 'false']
     Description: Set to false if this AWS account already has the token.actions.githubusercontent.com provider.
+  CloudFrontPrefixListId:
+    Type: String
+    AllowedPattern: '^pl-[0-9a-f]+$'
+    ConstraintDescription: must look like pl-0123abcd
+    Description: >
+      ID of the AWS-managed prefix list "com.amazonaws.global.cloudfront.origin-facing"
+      in this region (VPC console → Managed prefix lists). The server accepts traffic
+      from these CloudFront addresses only. Same ID for every account in a region.
   LatestAmiId:
     Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
     Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-arm64
@@ -27,56 +35,6 @@ Conditions:
   MakeOidcProvider: !Equals [!Ref CreateGitHubOidcProvider, 'true']
 
 Resources:
-  # ---------------------------------------------------------------------------
-  # Look up CloudFront's "origin-facing" managed prefix list (its ID differs per
-  # region) so the server accepts traffic from CloudFront and nothing else.
-  # ---------------------------------------------------------------------------
-  PrefixListLookupRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal: { Service: lambda.amazonaws.com }
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-      Policies:
-        - PolicyName: describe-prefix-lists
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action: ec2:DescribeManagedPrefixLists
-                Resource: '*'
-
-  PrefixListLookupFunction:
-    Type: AWS::Lambda::Function
-    Properties:
-      Runtime: python3.12
-      Handler: index.handler
-      Timeout: 30
-      Role: !GetAtt PrefixListLookupRole.Arn
-      Code:
-        ZipFile: |
-          import boto3, cfnresponse
-          def handler(event, context):
-              try:
-                  if event['RequestType'] == 'Delete':
-                      return cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
-                  lists = boto3.client('ec2').describe_managed_prefix_lists(
-                      Filters=[{'Name': 'prefix-list-name', 'Values': ['com.amazonaws.global.cloudfront.origin-facing']}]
-                  )['PrefixLists']
-                  cfnresponse.send(event, context, cfnresponse.SUCCESS, {'Id': lists[0]['PrefixListId']})
-              except Exception as e:
-                  cfnresponse.send(event, context, cfnresponse.FAILED, {'Error': str(e)})
-
-  CloudFrontPrefixList:
-    Type: Custom::CloudFrontPrefixList
-    Properties:
-      ServiceToken: !GetAtt PrefixListLookupFunction.Arn
-
   # ---------------------------------------------------------------------------
   # Storage: SPA (site/), host scripts (deploy/), backups (backups/, 7 days)
   # ---------------------------------------------------------------------------
@@ -163,7 +121,7 @@ Resources:
         - IpProtocol: tcp
           FromPort: 80
           ToPort: 80
-          SourcePrefixListId: !GetAtt CloudFrontPrefixList.Id
+          SourcePrefixListId: !Ref CloudFrontPrefixListId
           Description: CloudFront origin-facing
 
   Server:
