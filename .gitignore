@@ -7,3 +7,9 @@ coverage/
 
 # Local Claude Code config
 .claude/
+
+# Never commit credentials
+*.csv
+*accessKeys*
+*.pem
+*credentials*
