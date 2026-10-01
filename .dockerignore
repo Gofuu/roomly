@@ -1,0 +1,12 @@
+node_modules
+**/node_modules
+**/dist
+.pgdata
+.env
+.git
+.claude
+coverage
+# Never send credentials into a build
+*.csv
+*accessKeys*
+*.pem

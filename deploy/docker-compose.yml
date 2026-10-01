@@ -1,0 +1,66 @@
+# Everything that runs on the server: Caddy (HTTPS), the app, and Postgres.
+# Secrets come from a .env file next to this one (see .env.example in this folder).
+name: roomly
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${PG_SUPERUSER_PASSWORD}
+      POSTGRES_DB: roomly
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d roomly"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # The API, which also serves the web app. Not reachable from outside: only Caddy talks to it.
+  app:
+    image: ghcr.io/gofuu/roomly-api:latest
+    restart: unless-stopped
+    environment:
+      PGHOST: postgres
+      PGPORT: "5432"
+      DB_NAME: roomly
+      PG_SUPERUSER: postgres
+      PG_SUPERUSER_PASSWORD: ${PG_SUPERUSER_PASSWORD}
+      APP_DB_USER: roomly_app
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD}
+      WEB_ORIGIN: https://${SITE_DOMAIN}
+      JWT_SECRET: ${JWT_SECRET}
+      ACCESS_TOKEN_TTL_SECONDS: "900"
+      REFRESH_TOKEN_TTL_DAYS: "30"
+      INVITE_TTL_DAYS: "7"
+      # On start: apply new migrations, and add the demo companies if the database is empty.
+      RUN_MIGRATIONS: "true"
+      SEED_DEMO_DATA: "true"
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      STRIPE_PRICE_PRO: ${STRIPE_PRICE_PRO:-}
+      STRIPE_PRICE_ENTERPRISE: ${STRIPE_PRICE_ENTERPRISE:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # The only container open to the internet. Gets and renews the HTTPS certificate by itself.
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data   # certificates: must survive restarts
+    depends_on:
+      - app
+
+volumes:
+  pgdata:
+  caddy_data:

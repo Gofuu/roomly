@@ -1,0 +1,6 @@
+# Caddy gets a Let's Encrypt certificate for SITE_DOMAIN, redirects HTTP to
+# HTTPS, and passes every request (pages, API, WebSocket) on to the app.
+{$SITE_DOMAIN} {
+	encode gzip
+	reverse_proxy app:4000
+}
